@@ -1,0 +1,6 @@
+bg_place.png
+coin.png
+flag.png
+idle.png
+libgdx.png
+player_animation.png
