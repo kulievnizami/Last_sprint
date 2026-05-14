@@ -1,6 +1,6 @@
+Sounds/Coin_play.mp3
 bg_place.png
 coin.png
+coinanim.png
 flag.png
 idle.png
-libgdx.png
-player_animation.png
