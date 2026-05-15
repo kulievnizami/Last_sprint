@@ -9,14 +9,18 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 
 public class Character {
 
+    private float velocityY = 0;
+    private float gravity = -2000f;
+    private boolean onGround = true;
     private Texture spriteSheet;
     private Animation<TextureRegion> idleAnimation;
     private float stateTime;
 
+
+
     private float x;
     private float y;
 
-    private float speed = 500f;
 
     public Character(float startX, float startY) {
         this.x = startX;
@@ -42,15 +46,24 @@ public class Character {
         stateTime = 0f;
     }
 
+
     public void update(float deltaTime) {
+
         stateTime += deltaTime;
 
-        if (Gdx.input.isKeyPressed(Input.Keys.D)) {
-            x += speed * deltaTime;
+        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && onGround) {
+            velocityY = 800f;
+            onGround = false;
         }
 
-        if (Gdx.input.isKeyPressed(Input.Keys.A)) {
-            x -= speed * deltaTime;
+        velocityY += gravity * deltaTime;
+
+        y += velocityY * deltaTime;
+
+        if (y <= 100) {
+            y = 100;
+            velocityY = 0;
+            onGround = true;
         }
     }
 
