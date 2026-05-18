@@ -10,7 +10,6 @@ public class Meteorite {
     private float height = 80;
     private float rotation = 0f;
     private float speedX;
-
     public Meteorite(float startX, float startY, float speedX) {
         this.x = startX;
         this.y = startY;
