@@ -3,4 +3,11 @@ bg_place.png
 coin.png
 coinanim.png
 flag.png
-idle.png
+idle1.png
+idle2.png
+idle3.png
+idle4.png
+idle5.png
+idle6.png
+meteor.png
+playt.png
