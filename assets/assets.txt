@@ -1,4 +1,7 @@
+Robot-russian.ttf
+Robot_anglich.ttf
 Sounds/Coin_play.mp3
+bg_menu.png
 bg_place.png
 coin.png
 coinanim.png
