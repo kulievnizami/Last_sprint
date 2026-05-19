@@ -110,7 +110,7 @@ public class Main extends ApplicationAdapter {
 
         batch = new SpriteBatch();
 
-        backgroundGame = new Texture("bg_place2.jpg");
+        backgroundGame = new Texture("bg_place2.png");
         backgroundMenu = new Texture("bg_menu.png");
 
         viewport = new ScreenViewport();
