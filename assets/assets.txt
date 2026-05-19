@@ -1,11 +1,16 @@
 Robot-russian.ttf
 Robot_anglich.ttf
 Sounds/Coin_play.mp3
+Sounds/bg_music.mp3
+Sounds/game_music.mp3
 bg_menu.png
 bg_place.png
+bg_place2.jpg
+bg_place3.jpg
 coin.png
 coinanim.png
 flag.png
+idle.png
 idle1.png
 idle2.png
 idle3.png

@@ -6,6 +6,7 @@ import java.util.Random;
 import java.util.ArrayList;
 import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.audio.Sound;
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -28,11 +29,14 @@ public class Main extends ApplicationAdapter {
     private float volume;
 
     private SpriteBatch batch;
-    private Texture backgroundGame; 
-    private Texture backgroundMenu; 
-    private Texture darkOverlay; 
-    private Texture meteoriteTexture; 
-    
+    private Texture backgroundGame;
+    private Music bgMusic;
+    private Music gameMusic;
+
+    private Texture backgroundMenu;
+    private Texture darkOverlay;
+    private Texture meteoriteTexture;
+
     private Texture islandWindowTexture;
     private Texture buttonTexture;
 
@@ -42,9 +46,9 @@ public class Main extends ApplicationAdapter {
     private Sound coinSound;
     private BitmapFont font;
 
-    private int point = 0; 
-    private float score = 0; 
-    private float nextMeteorSpawnScore = 0; 
+    private int point = 0;
+    private float score = 0;
+    private float nextMeteorSpawnScore = 0;
 
     private int highPoints = 0;
     private int highScore = 0;
@@ -53,23 +57,23 @@ public class Main extends ApplicationAdapter {
     private Character player;
     private ArrayList<Coin> coins;
     private ArrayList<Platform> platforms;
-    private ArrayList<Meteorite> meteorites; 
+    private ArrayList<Meteorite> meteorites;
 
     private float bgX = 0;
-    private float lastPlatformY = 100f; 
+    private float lastPlatformY = 100f;
 
     private Rectangle menuPlayButton;
     private Rectangle menuRecordsButton;
     private Rectangle menuSettingsButton;
     private Rectangle menuExitButton;
-    
+
     private Rectangle settingsVolumeButton;
     private Rectangle settingsLangButton;
     private Rectangle settingsBackButton;
 
     private Rectangle gameOverContinueButton;
     private Rectangle gameOverExitButton;
-    
+
     private Rectangle recordsBackButton;
 
     private float windowWidth = 400;
@@ -78,7 +82,7 @@ public class Main extends ApplicationAdapter {
     @Override
     public void create() {
         Animations.load();
-        Platform.load(); 
+        Platform.load();
         Coin.load();
 
         prefs = Gdx.app.getPreferences("RetroRunnerSettings");
@@ -92,15 +96,25 @@ public class Main extends ApplicationAdapter {
 
         coinSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/coin_play.mp3"));
 
+        bgMusic = Gdx.audio.newMusic(Gdx.files.internal("Sounds/bg_music.mp3"));
+        bgMusic.setLooping(true);
+        bgMusic.setVolume(volume);
+
+        gameMusic = Gdx.audio.newMusic(Gdx.files.internal("Sounds/game_music.mp3"));
+        gameMusic.setLooping(true);
+        gameMusic.setVolume(volume);
+
+        bgMusic.play();
+
         loadFont();
 
         batch = new SpriteBatch();
-        
-        backgroundGame = new Texture("bg_place.png");
-        backgroundMenu = new Texture("bg_menu.png"); 
-        
+
+        backgroundGame = new Texture("bg_place2.jpg");
+        backgroundMenu = new Texture("bg_menu.png");
+
         viewport = new ScreenViewport();
-        
+
         Pixmap pixmapOverlay = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
         pixmapOverlay.setColor(0, 0, 0, 0.6f);
         pixmapOverlay.fill();
@@ -154,18 +168,18 @@ public class Main extends ApplicationAdapter {
     private void initGame() {
         point = 0;
         score = 0;
-        gameSpeed = 550f; 
+        gameSpeed = 550f;
         platforms.clear();
         coins.clear();
-        meteorites.clear(); 
-        
+        meteorites.clear();
+
         nextMeteorSpawnScore = 100f + random.nextInt(200);
-        
-        float platformHeight = 45f; 
+
+        float platformHeight = 45f;
         lastPlatformY = 100f;
 
         platforms.add(new Platform(0, lastPlatformY, 800, platformHeight));
-        player.reset(200, lastPlatformY + platformHeight); 
+        player.reset(200, lastPlatformY + platformHeight);
 
         for (int i = 0; i < 5; i++) {
             spawnPlatform();
@@ -173,16 +187,16 @@ public class Main extends ApplicationAdapter {
     }
 
     private void spawnPlatform() {
-        float platformHeight = 45f; 
-        float width = 520f; 
-        float gap = 350f;   
-        
+        float platformHeight = 45f;
+        float width = 520f;
+        float gap = 350f;
+
         float yChange = -15 + random.nextInt(30);
         float y = lastPlatformY + yChange;
-        
+
         if (y < 70) y = 70;
         if (y > 200) y = 200;
-        
+
         float x = 0;
         if (!platforms.isEmpty()) {
             Platform lastPlatform = platforms.get(platforms.size() - 1);
@@ -190,18 +204,18 @@ public class Main extends ApplicationAdapter {
         }
 
         platforms.add(new Platform(x, y, width, platformHeight));
-        lastPlatformY = y; 
+        lastPlatformY = y;
 
         if (random.nextInt(100) < 60) {
-            float coinX = x + width / 2 - 32; 
-            float coinY = y + 85f; 
+            float coinX = x + width / 2 - 32;
+            float coinY = y + 85f;
             coins.add(new Coin(coinX, coinY));
         }
     }
-    
+
     private void spawnMeteorite() {
-        float startX = viewport.getWorldWidth() + 50; 
-        float startY = lastPlatformY + 70 + random.nextInt(150); 
+        float startX = viewport.getWorldWidth() + 50;
+        float startY = lastPlatformY + 70 + random.nextInt(150);
         float meteorSpeed = gameSpeed + 150f + random.nextInt(150);
         meteorites.add(new Meteorite(startX, startY, meteorSpeed));
     }
@@ -222,7 +236,7 @@ public class Main extends ApplicationAdapter {
         }
 
         if (isUpdated) {
-            prefs.flush(); 
+            prefs.flush();
         }
     }
 
@@ -236,7 +250,7 @@ public class Main extends ApplicationAdapter {
 
         float wx = (viewport.getWorldWidth() - windowWidth) / 2;
         float wy = (viewport.getWorldHeight() - windowHeight) / 2;
-        
+
         menuPlayButton = new Rectangle(wx + 90, wy + 230, 220, 50);
         menuRecordsButton = new Rectangle(wx + 90, wy + 165, 220, 50);
         menuSettingsButton = new Rectangle(wx + 90, wy + 100, 220, 50);
@@ -245,21 +259,25 @@ public class Main extends ApplicationAdapter {
         settingsLangButton = new Rectangle(wx + 90, wy + 165, 220, 50);
         settingsVolumeButton = new Rectangle(wx + 90, wy + 100, 220, 50);
         settingsBackButton = new Rectangle(wx + 90, wy + 35, 220, 50);
-        
+
         gameOverContinueButton = new Rectangle(wx + 90, wy + 110, 220, 50);
         gameOverExitButton = new Rectangle(wx + 90, wy + 40, 220, 50);
-        
+
         recordsBackButton = new Rectangle(wx + 90, wy + 40, 220, 50);
 
+
+
         if (state == GameState.RUNNING) {
-            gameSpeed += 3f * delta; 
-            score += gameSpeed * delta * 0.05f; 
+            bgMusic.stop();
+            gameMusic.play();
+            gameSpeed += 3f * delta;
+            score += gameSpeed * delta * 0.05f;
             float moveDistance = gameSpeed * delta;
 
             player.update(delta, platforms);
             bgX -= (moveDistance * 0.4f);
             if (bgX <= -viewport.getWorldWidth()) bgX = 0;
-            
+
             if (score >= nextMeteorSpawnScore) {
                 spawnMeteorite();
                 nextMeteorSpawnScore = score + 100f + random.nextInt(200);
@@ -269,10 +287,10 @@ public class Main extends ApplicationAdapter {
                 Meteorite m = meteorites.get(i);
                 m.update(delta);
                 if (isColliding(player, m)) {
-                    state = GameState.GAME_OVER; 
-                    checkAndSaveRecords(); 
+                    state = GameState.GAME_OVER;
+                    checkAndSaveRecords();
                 } else if (m.getX() + m.getWidth() < -100) {
-                    meteorites.remove(i); 
+                    meteorites.remove(i);
                 }
             }
 
@@ -281,14 +299,14 @@ public class Main extends ApplicationAdapter {
                 p.move(moveDistance);
                 if (p.getX() + p.getWidth() < 0) {
                     platforms.remove(i);
-                    spawnPlatform(); 
+                    spawnPlatform();
                 }
             }
 
             for (int i = coins.size() - 1; i >= 0; i--) {
                 Coin coin = coins.get(i);
                 coin.move(moveDistance);
-                coin.updateTime(delta); 
+                coin.updateTime(delta);
                 if (isColliding(player, coin)) {
                     coinSound.play(volume);
                     coins.remove(i);
@@ -300,7 +318,7 @@ public class Main extends ApplicationAdapter {
 
             if (player.getY() < -player.getHeight()) {
                 state = GameState.GAME_OVER;
-                checkAndSaveRecords(); 
+                checkAndSaveRecords();
             }
         }
 
@@ -308,6 +326,8 @@ public class Main extends ApplicationAdapter {
             Vector2 touch = viewport.unproject(new Vector2(Gdx.input.getX(), Gdx.input.getY()));
 
             if (state == GameState.MENU) {
+                gameMusic.stop();
+                bgMusic.play();
                 if (menuPlayButton.contains(touch.x, touch.y)) {
                     initGame();
                     state = GameState.RUNNING;
@@ -318,7 +338,7 @@ public class Main extends ApplicationAdapter {
                 } else if (menuExitButton.contains(touch.x, touch.y)) {
                     Gdx.app.exit();
                 }
-            } 
+            }
             else if (state == GameState.SETTINGS) {
                 if (settingsLangButton.contains(touch.x, touch.y)) {
                     isRussian = !isRussian;
@@ -330,6 +350,7 @@ public class Main extends ApplicationAdapter {
                     if (volume < 0f) volume = 1.0f;
                     prefs.putFloat("volume", volume);
                     prefs.flush();
+                    bgMusic.setVolume(volume);
                 } else if (settingsBackButton.contains(touch.x, touch.y)) {
                     state = GameState.MENU;
                 }
@@ -339,7 +360,7 @@ public class Main extends ApplicationAdapter {
                     initGame();
                     state = GameState.RUNNING;
                 } else if (gameOverExitButton.contains(touch.x, touch.y)) {
-                    state = GameState.MENU; 
+                    state = GameState.MENU;
                 }
             }
             else if (state == GameState.RECORDS) {
@@ -368,31 +389,31 @@ public class Main extends ApplicationAdapter {
             } else {
                 batch.draw(darkOverlay, 0, 0, viewport.getWorldWidth(), viewport.getWorldHeight());
                 batch.draw(islandWindowTexture, wx, wy, windowWidth, windowHeight);
-                
+
                 font.setColor(Color.RED);
                 font.draw(batch, isRussian ? "ИГРА ОКОНЧЕНА" : "GAME OVER", wx + (isRussian ? 80 : 120), wy + 280);
                 font.setColor(Color.WHITE);
                 font.draw(batch, (isRussian ? "Очки: " : "Points: ") + point + (isRussian ? "  |  Счет: " : "  |  Score: ") + (int) score, wx + (isRussian ? 45 : 60), wy + 210);
-                
+
                 batch.draw(buttonTexture, gameOverContinueButton.x, gameOverContinueButton.y, gameOverContinueButton.width, gameOverContinueButton.height);
                 batch.draw(buttonTexture, gameOverExitButton.x, gameOverExitButton.y, gameOverExitButton.width, gameOverExitButton.height);
-                
+
                 font.draw(batch, isRussian ? "ЗАНОВО" : "RESTART", gameOverContinueButton.x + (isRussian ? 65 : 60), gameOverContinueButton.y + 35);
                 font.draw(batch, isRussian ? "МЕНЮ" : "MENU", gameOverExitButton.x + (isRussian ? 75 : 80), gameOverExitButton.y + 35);
             }
-        } 
+        }
         else if (state == GameState.MENU) {
             batch.draw(backgroundMenu, 0, 0, bgWidth, viewport.getWorldHeight());
             batch.draw(islandWindowTexture, wx, wy, windowWidth, windowHeight);
-            
+
             font.setColor(Color.GOLD);
             font.draw(batch, isRussian ? "ГЛАВНОЕ МЕНЮ" : "MAIN MENU", wx + (isRussian ? 90 : 125), wy + 310);
-            
+
             batch.draw(buttonTexture, menuPlayButton.x, menuPlayButton.y, menuPlayButton.width, menuPlayButton.height);
             batch.draw(buttonTexture, menuRecordsButton.x, menuRecordsButton.y, menuRecordsButton.width, menuRecordsButton.height);
             batch.draw(buttonTexture, menuSettingsButton.x, menuSettingsButton.y, menuSettingsButton.width, menuSettingsButton.height);
             batch.draw(buttonTexture, menuExitButton.x, menuExitButton.y, menuExitButton.width, menuExitButton.height);
-            
+
             font.setColor(Color.WHITE);
             font.draw(batch, isRussian ? "ИГРАТЬ" : "PLAY", menuPlayButton.x + (isRussian ? 65 : 85), menuPlayButton.y + 35);
             font.draw(batch, isRussian ? "РЕКОРДЫ" : "RECORDS", menuRecordsButton.x + (isRussian ? 50 : 60), menuRecordsButton.y + 35);
@@ -402,14 +423,14 @@ public class Main extends ApplicationAdapter {
         else if (state == GameState.SETTINGS) {
             batch.draw(backgroundMenu, 0, 0, bgWidth, viewport.getWorldHeight());
             batch.draw(islandWindowTexture, wx, wy, windowWidth, windowHeight);
-            
+
             font.setColor(Color.GOLD);
             font.draw(batch, isRussian ? "НАСТРОЙКИ" : "SETTINGS", wx + (isRussian ? 120 : 135), wy + 310);
-            
+
             batch.draw(buttonTexture, settingsLangButton.x, settingsLangButton.y, settingsLangButton.width, settingsLangButton.height);
             batch.draw(buttonTexture, settingsVolumeButton.x, settingsVolumeButton.y, settingsVolumeButton.width, settingsVolumeButton.height);
             batch.draw(buttonTexture, settingsBackButton.x, settingsBackButton.y, settingsBackButton.width, settingsBackButton.height);
-            
+
             font.setColor(Color.WHITE);
             font.draw(batch, isRussian ? "ЯЗЫК: РУС" : "LANG: ENG", settingsLangButton.x + 40, settingsLangButton.y + 35);
             font.draw(batch, (isRussian ? "ЗВУК: " : "VOL: ") + (int)(volume * 100) + "%", settingsVolumeButton.x + 50, settingsVolumeButton.y + 35);
@@ -418,14 +439,14 @@ public class Main extends ApplicationAdapter {
         else if (state == GameState.RECORDS) {
             batch.draw(backgroundMenu, 0, 0, bgWidth, viewport.getWorldHeight());
             batch.draw(islandWindowTexture, wx, wy, windowWidth, windowHeight);
-            
+
             font.setColor(Color.GOLD);
             font.draw(batch, isRussian ? "РЕКОРДЫ" : "HIGH SCORES", wx + (isRussian ? 130 : 110), wy + 310);
-            
+
             font.setColor(Color.WHITE);
             font.draw(batch, (isRussian ? "Макс. Очки: " : "Best Points: ") + highPoints, wx + 60, wy + 210);
             font.draw(batch, (isRussian ? "Макс. Счет: " : "Best Score: ") + highScore, wx + 60, wy + 160);
-            
+
             batch.draw(buttonTexture, recordsBackButton.x, recordsBackButton.y, recordsBackButton.width, recordsBackButton.height);
             font.draw(batch, isRussian ? "НАЗАД" : "BACK", recordsBackButton.x + (isRussian ? 70 : 85), recordsBackButton.y + 35);
         }
@@ -439,9 +460,9 @@ public class Main extends ApplicationAdapter {
             player.getY() < coin.getY() + coin.getHeight() &&
             player.getY() + player.getHeight() > coin.getY();
     }
-    
+
     private boolean isColliding(Character player, Meteorite m) {
-        float hitShrink = 12f; 
+        float hitShrink = 12f;
         return player.getX() < m.getX() + m.getWidth() - hitShrink &&
             player.getX() + player.getWidth() > m.getX() + hitShrink &&
             player.getY() < m.getY() + m.getHeight() - hitShrink &&
