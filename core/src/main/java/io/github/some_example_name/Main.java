@@ -184,6 +184,8 @@ public class Main extends ApplicationAdapter {
         platforms.clear();
         coins.clear();
         meteorites.clear();
+        logs.clear();
+        warnings.clear();
 
         nextMeteorSpawnScore = 100f + random.nextInt(200);
 
@@ -205,6 +207,7 @@ public class Main extends ApplicationAdapter {
 
         float yChange = -15 + random.nextInt(30);
         float y = lastPlatformY + yChange;
+        boolean isInitializing = true;
 
         if (y < 70) y = 70;
         if (y > 200) y = 200;
@@ -219,7 +222,8 @@ public class Main extends ApplicationAdapter {
         lastPlatformY = y;
 
         if (random.nextInt(100) < 70) {
-            warnings.add(new Warning());
+            float gapCenterX = x - gap / 2f;
+            warnings.add(new Warning(gapCenterX));
         }
 
 
@@ -319,6 +323,7 @@ public class Main extends ApplicationAdapter {
                 FallingLog log = logs.get(i);
 
                 log.update(delta);
+                if (!holdTime) log.move(moveDistance);
 
                 if (isColliding(player, log)) {
                     state = GameState.GAME_OVER;
@@ -338,7 +343,7 @@ public class Main extends ApplicationAdapter {
 
                 if (w.isFinished()) {
 
-                    float logX = viewport.getWorldWidth() / 2f - 100;
+                    float logX = w.getX() - 110f;
 
                     logs.add(new FallingLog(
                         logX,
@@ -360,6 +365,9 @@ public class Main extends ApplicationAdapter {
                         platforms.remove(i);
                         spawnPlatform();
                     }
+                }
+                for (Warning w : warnings) {
+                    w.move(moveDistance);
                 }
             }
 
@@ -386,7 +394,7 @@ public class Main extends ApplicationAdapter {
 
         if (Gdx.input.justTouched()) {
             Vector2 touch = viewport.unproject(new Vector2(Gdx.input.getX(), Gdx.input.getY()));
-        if (state == GameState.MENU) {
+            if (state == GameState.MENU) {
                 gameMusic.stop();
                 bgMusic.play();
                 if (menuPlayButton.contains(touch.x, touch.y)) {

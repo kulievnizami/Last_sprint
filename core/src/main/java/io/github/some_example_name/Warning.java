@@ -4,13 +4,18 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
-
 public class Warning {
     float time = 0;
     boolean visible = true;
+    private float x; // X-координата центра щели между платформами
 
-    public Warning() {
-        // пустой конструктор
+    public Warning(float x) {
+        this.x = x;
+    }
+
+    // Двигаемся вместе с миром
+    public void move(float distance) {
+        x -= distance;
     }
 
     public void update(float delta) {
@@ -22,11 +27,14 @@ public class Warning {
         return time > 1.2f;
     }
 
+    public float getX() {
+        return x;
+    }
+
     public void render(SpriteBatch batch, Texture tex, Viewport viewport) {
         if (visible) {
-            float x = viewport.getWorldWidth() / 2f - 150;
-            float y = 20;
-            batch.draw(tex, x, y, 300, 300);
+            // Рисуем по X щели, снизу экрана
+            batch.draw(tex, x - 150, 20, 300, 300);
         }
     }
 }
