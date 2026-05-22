@@ -3,6 +3,7 @@ package io.github.some_example_name;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import java.util.Random;
+import com.badlogic.gdx.Input;
 import java.util.ArrayList;
 import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.audio.Sound;
@@ -37,10 +38,15 @@ public class Main extends ApplicationAdapter {
     private Texture darkOverlay;
     private Texture meteoriteTexture;
 
+    private ArrayList<FallingLog> logs;
+    private Texture logTexture;
+
     private Texture islandWindowTexture;
     private Texture buttonTexture;
 
     private float gameSpeed;
+
+
     private Random random = new Random();
     private Viewport viewport;
     private Sound coinSound;
@@ -58,6 +64,8 @@ public class Main extends ApplicationAdapter {
     private ArrayList<Coin> coins;
     private ArrayList<Platform> platforms;
     private ArrayList<Meteorite> meteorites;
+    private ArrayList<Warning> warnings;
+    private Texture warningTexture;
 
     private float bgX = 0;
     private float lastPlatformY = 100f;
@@ -92,6 +100,10 @@ public class Main extends ApplicationAdapter {
         volume = prefs.getFloat("volume", 1.0f);
 
         meteoriteTexture = new Texture("meteor.png");
+        warnings = new ArrayList<>();
+        warningTexture = new Texture("Warning.png");
+        logs = new ArrayList<>();
+        logTexture = new Texture("log.png");
         meteoriteTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
 
         coinSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/coin_play.mp3"));
@@ -206,6 +218,11 @@ public class Main extends ApplicationAdapter {
         platforms.add(new Platform(x, y, width, platformHeight));
         lastPlatformY = y;
 
+        if (random.nextInt(100) < 70) {
+            warnings.add(new Warning());
+        }
+
+
         if (random.nextInt(100) < 60) {
             float coinX = x + width / 2 - 32;
             float coinY = y + 85f;
@@ -244,6 +261,7 @@ public class Main extends ApplicationAdapter {
     public void render() {
         ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
         float delta = Gdx.graphics.getDeltaTime();
+        boolean holdTime = Gdx.input.isKeyPressed(Input.Keys.R) && player.isOnGround();
 
         viewport.apply();
         batch.setProjectionMatrix(viewport.getCamera().combined);
@@ -271,12 +289,15 @@ public class Main extends ApplicationAdapter {
             bgMusic.stop();
             gameMusic.play();
             gameSpeed += 3f * delta;
-            score += gameSpeed * delta * 0.05f;
+            if (!holdTime) {score += gameSpeed * delta * 0.05f;}
             float moveDistance = gameSpeed * delta;
 
-            player.update(delta, platforms);
-            bgX -= (moveDistance * 0.4f);
-            if (bgX <= -viewport.getWorldWidth()) bgX = 0;
+            if (!holdTime) {
+                player.update(delta, platforms);
+
+                bgX -= (moveDistance * 0.4f);
+                if (bgX <= -viewport.getWorldWidth()) bgX = 0;
+            }
 
             if (score >= nextMeteorSpawnScore) {
                 spawnMeteorite();
@@ -293,19 +314,60 @@ public class Main extends ApplicationAdapter {
                     meteorites.remove(i);
                 }
             }
+            for (int i = logs.size() - 1; i >= 0; i--) {
 
-            for (int i = platforms.size() - 1; i >= 0; i--) {
-                Platform p = platforms.get(i);
-                p.move(moveDistance);
-                if (p.getX() + p.getWidth() < 0) {
-                    platforms.remove(i);
-                    spawnPlatform();
+                FallingLog log = logs.get(i);
+
+                log.update(delta);
+
+                if (isColliding(player, log)) {
+                    state = GameState.GAME_OVER;
+                    checkAndSaveRecords();
+                }
+
+                if (log.getY() + log.getHeight() < 0) {
+                    logs.remove(i);
+                }
+            }
+
+            for (int i = warnings.size() - 1; i >= 0; i--) {
+
+                Warning w = warnings.get(i);
+
+                w.update(delta);
+
+                if (w.isFinished()) {
+
+                    float logX = viewport.getWorldWidth() / 2f - 100;
+
+                    logs.add(new FallingLog(
+                        logX,
+                        viewport.getWorldHeight() + 100
+                    ));
+
+                    warnings.remove(i);
+                }
+            }
+
+
+
+            if (!holdTime) {
+                for (int i = platforms.size() - 1; i >= 0; i--) {
+                    Platform p = platforms.get(i);
+                    p.move(moveDistance);
+
+                    if (p.getX() + p.getWidth() < 0) {
+                        platforms.remove(i);
+                        spawnPlatform();
+                    }
                 }
             }
 
             for (int i = coins.size() - 1; i >= 0; i--) {
                 Coin coin = coins.get(i);
-                coin.move(moveDistance);
+                if (!holdTime) {
+                    coin.move(moveDistance);
+                }
                 coin.updateTime(delta);
                 if (isColliding(player, coin)) {
                     coinSound.play(volume);
@@ -324,8 +386,7 @@ public class Main extends ApplicationAdapter {
 
         if (Gdx.input.justTouched()) {
             Vector2 touch = viewport.unproject(new Vector2(Gdx.input.getX(), Gdx.input.getY()));
-
-            if (state == GameState.MENU) {
+        if (state == GameState.MENU) {
                 gameMusic.stop();
                 bgMusic.play();
                 if (menuPlayButton.contains(touch.x, touch.y)) {
@@ -373,14 +434,22 @@ public class Main extends ApplicationAdapter {
         batch.begin();
         float bgWidth = viewport.getWorldWidth();
 
+
+
+
         if (state == GameState.RUNNING || state == GameState.GAME_OVER) {
             batch.draw(backgroundGame, bgX, 0, bgWidth, viewport.getWorldHeight());
             batch.draw(backgroundGame, bgX + bgWidth - 2f, 0, bgWidth, viewport.getWorldHeight());
 
+            for (Warning w : warnings) {w.render(batch, warningTexture, viewport);}
             for (Platform platform : platforms) platform.render(batch);
             for (Coin coin : coins) coin.render(batch);
             for (Meteorite m : meteorites) m.render(batch, meteoriteTexture);
+            for (FallingLog log : logs) {log.render(batch, logTexture);}
             player.render(batch);
+
+
+
 
             if (state == GameState.RUNNING) {
                 font.setColor(Color.WHITE);
@@ -467,6 +536,15 @@ public class Main extends ApplicationAdapter {
             player.getX() + player.getWidth() > m.getX() + hitShrink &&
             player.getY() < m.getY() + m.getHeight() - hitShrink &&
             player.getY() + player.getHeight() > m.getY() + hitShrink;
+
+    }
+    private boolean isColliding(Character player, FallingLog log) {
+        float hitShrink = 12f;
+
+        return player.getX() < log.getX() + log.getWidth() - hitShrink &&
+            player.getX() + player.getWidth() > log.getX() + hitShrink &&
+            player.getY() < log.getY() + log.getHeight() - hitShrink &&
+            player.getY() + player.getHeight() > log.getY() + hitShrink;
     }
 
     @Override

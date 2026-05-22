@@ -3,6 +3,7 @@ Robot_anglich.ttf
 Sounds/Coin_play.mp3
 Sounds/bg_music.mp3
 Sounds/game_music.mp3
+Warning.png
 bg_menu.png
 bg_place2.png
 coin.png
@@ -15,5 +16,6 @@ idle3.png
 idle4.png
 idle5.png
 idle6.png
+log.png
 meteor.png
 playt.png

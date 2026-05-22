@@ -10,12 +10,12 @@ public class Character {
     private float velocityY = 0;
     private float gravity = -2000f;
     private boolean onGround = true;
-    private boolean canDoubleJump = false; 
+    private boolean canDoubleJump = false;
     private Texture[] idleFrames;
     private Animation<TextureRegion> idleAnimation;
     private float stateTime;
     private float x, y;
-    private float feetOffset = 15f; 
+    private float feetOffset = 15f;
     public Character(float startX, float startY) {
         idleFrames = new Texture[6];
         TextureRegion[] frames = new TextureRegion[6];
@@ -41,7 +41,7 @@ public class Character {
         onGround = false;
         for (Platform p : platforms) {
             if (velocityY <= 0) {
-                float charLeft = x + 15f; 
+                float charLeft = x + 15f;
                 float charRight = x + getWidth() - 15f;
                 if (charRight > p.getX() && charLeft < p.getX() + p.getWidth()) {
                     float platformTop = p.getY() + p.getHeight();
@@ -49,7 +49,7 @@ public class Character {
                         y = platformTop;
                         velocityY = 0;
                         onGround = true;
-                        canDoubleJump = true; 
+                        canDoubleJump = true;
                         break;
                     }
                 }
@@ -59,10 +59,10 @@ public class Character {
             if (onGround) {
                 velocityY = 850f;
                 onGround = false;
-                canDoubleJump = true; 
+                canDoubleJump = true;
             } else if (canDoubleJump) {
-                velocityY = 800f; 
-                canDoubleJump = false; 
+                velocityY = 800f;
+                canDoubleJump = false;
             }
         }
     }
@@ -77,6 +77,10 @@ public class Character {
     }
     public float getHeight() {
         return idleFrames[0].getHeight();
+    }
+
+    public boolean isOnGround() {
+        return onGround;
     }
     public void dispose() {
         for (int i = 0; i < 6; i++) {
