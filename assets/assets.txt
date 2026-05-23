@@ -8,9 +8,16 @@ Sounds/game_music.mp3
 Warning.png
 bg_menu.png
 bg_place2.png
+bg_place3.png
+bg_place4.png
+chargemonster.png2.png
+chargemonster.png3.png
+chargemonster1.png
 coin.png
 coinanim.png
 flag.png
+heart1.png
+heart2.png
 idle.png
 idle1.png
 idle2.png
@@ -20,4 +27,7 @@ idle5.png
 idle6.png
 log.png
 meteor.png
+monster1.png
+monster2.png
+monster3.png
 playt.png

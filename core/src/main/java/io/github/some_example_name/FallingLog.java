@@ -17,17 +17,17 @@ public class FallingLog {
         y -= speed * delta;
     }
 
-    // Двигаемся влево вместе с миром
+    
     public void move(float distance) {
         x -= distance;
     }
 
     public void render(SpriteBatch batch, Texture texture) {
-        batch.draw(texture, x, y, 220, 80);
+        batch.draw(texture, x, y, 80, 180);
     }
 
     public float getX() { return x; }
     public float getY() { return y; }
-    public float getWidth() { return 220; }
-    public float getHeight() { return 80; }
+    public float getWidth() { return 80; }
+    public float getHeight() { return 180; }
 }

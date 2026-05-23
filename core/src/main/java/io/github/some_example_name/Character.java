@@ -73,6 +73,8 @@ public class Character {
     }
     public float getX() { return x; }
     public float getY() { return y; }
+    public float getVelocityY() { return velocityY; }
+    public void setVelocityY(float vy) { this.velocityY = vy; }
     public float getWidth() {
         return idleFrames[0].getWidth();
     }
