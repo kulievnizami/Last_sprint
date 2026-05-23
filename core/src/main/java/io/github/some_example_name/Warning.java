@@ -2,39 +2,39 @@ package io.github.some_example_name;
 
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.utils.viewport.Viewport;
 
 public class Warning {
-    float time = 0;
-    boolean visible = true;
-    private float x; // X-координата центра щели между платформами
+    public float x, y;
+    private float time = 0;
 
-    public Warning(float x) {
+    public Warning(float x, float y) {
         this.x = x;
-    }
-
-    // Двигаемся вместе с миром
-    public void move(float distance) {
-        x -= distance;
+        this.y = y;
     }
 
     public void update(float delta) {
         time += delta;
-        visible = ((int)(time * 10) % 2 == 0);
     }
 
     public boolean isFinished() {
         return time > 1.2f;
     }
 
+    public boolean isVisible() {
+        return ((int)(time * 10) % 2 == 0);
+    }
+
+    public void render(SpriteBatch batch, Texture tex) {
+        if (isVisible()) {
+            batch.draw(tex, x - 150, y, 300, 300);
+        }
+    }
+
     public float getX() {
         return x;
     }
 
-    public void render(SpriteBatch batch, Texture tex, Viewport viewport) {
-        if (visible) {
-            // Рисуем по X щели, снизу экрана
-            batch.draw(tex, x - 150, 20, 300, 300);
-        }
+    public float getY() {
+        return y;
     }
 }

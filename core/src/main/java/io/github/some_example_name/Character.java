@@ -50,6 +50,7 @@ public class Character {
                         velocityY = 0;
                         onGround = true;
                         canDoubleJump = true;
+                        p.startBreaking();
                         break;
                     }
                 }

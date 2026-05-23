@@ -1,5 +1,7 @@
+BreakPlatform.png
 Robot-russian.ttf
 Robot_anglich.ttf
+Sounds/BreakPlat.mp3
 Sounds/Coin_play.mp3
 Sounds/bg_music.mp3
 Sounds/game_music.mp3
