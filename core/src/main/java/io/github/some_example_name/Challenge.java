@@ -2,7 +2,7 @@ package io.github.some_example_name;
 
 public class Challenge {
     public enum ChallengeType { NO_COINS, NO_DOUBLE_JUMP, SPEED_RUN }
-    
+
     private String name;
     private String description;
     private ChallengeType type;

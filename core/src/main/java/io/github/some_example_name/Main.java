@@ -24,9 +24,15 @@ import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 
+import io.github.some_example_name.objects.Coin;
+import io.github.some_example_name.objects.FallingLog;
+import io.github.some_example_name.objects.Meteorite;
+import io.github.some_example_name.objects.Shield;
+import io.github.some_example_name.objects.Warning;
+
 public class Main extends ApplicationAdapter {
 
-    enum GameState { MENU, RUNNING, GAME_OVER, RECORDS, SETTINGS, PAUSED, SHOP, AUTHORS, CHALLENGES }
+    enum GameState { MENU, RUNNING, GAME_OVER, RECORDS, SETTINGS, PAUSED, SHOP, AUTHORS, CHALLENGES, CHALLENGE_COMPLETED }
     private GameState state = GameState.MENU;
 
     private boolean isRussian;
@@ -59,8 +65,8 @@ public class Main extends ApplicationAdapter {
     private Random random = new Random();
     private Viewport viewport;
     private Sound coinSound;
-
     private BitmapFont font;
+    private BitmapFont smallFont;
     private GlyphLayout glyphLayout = new GlyphLayout();
 
     private int point = 0;
@@ -77,6 +83,13 @@ public class Main extends ApplicationAdapter {
     private ArrayList<Meteorite> meteorites;
     private ArrayList<Warning> warnings;
     private ArrayList<Monster> monsters;
+
+    ArrayList<Shield> shields = new ArrayList<>();
+    Texture shieldTexture;
+
+    private Sound shieldSound;
+    public static Sound shieldBreakSound;
+
     private ArrayList<MonsterProjectile> monsterProjectiles;
     private Texture warningTexture;
     private Texture heartFull, heartEmpty;
@@ -86,6 +99,7 @@ public class Main extends ApplicationAdapter {
 
     private ChallengeManager challengeManager;
     private int selectedChallengeIndex = 0;
+    private Challenge completedChallenge;
 
     private float bgX = 0;
     private float lastPlatformY = 100f;
@@ -118,6 +132,8 @@ public class Main extends ApplicationAdapter {
     private Rectangle challengesLeftButton;
     private Rectangle challengesRightButton;
     private Rectangle challengesStartButton;
+
+    private Rectangle completedBackButton;
 
     private Rectangle pauseButton;
     private Rectangle pauseContinueButton;
@@ -158,6 +174,7 @@ public class Main extends ApplicationAdapter {
         for (int i = 0; i < 20; i++) coinFrames[i] = tmp[0][i];
         coinAnimation = new Animation<>(0.05f, coinFrames);
 
+        shieldTexture = new Texture("shit.png");
         meteoriteTexture = new Texture("meteor.png");
         warnings = new ArrayList<>();
         warningTexture = new Texture("Warning.png");
@@ -168,6 +185,8 @@ public class Main extends ApplicationAdapter {
         coinSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/coin_play.mp3"));
 
         bgMusic = Gdx.audio.newMusic(Gdx.files.internal("Sounds/bg_music.mp3"));
+        shieldSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/Startshit.mp3"));
+        shieldBreakSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/BreakShit.mp3"));
         bgMusic.setLooping(true);
         bgMusic.setVolume(volume);
 
@@ -226,13 +245,23 @@ public class Main extends ApplicationAdapter {
 
     private void loadFont() {
         if (font != null) font.dispose();
+        if (smallFont != null) smallFont.dispose();
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal(isRussian ? "Robot-russian.ttf" : "Robot_anglich.ttf"));
+
         FreeTypeFontParameter parameter = new FreeTypeFontParameter();
         parameter.size = 28;
         parameter.color = Color.WHITE;
         parameter.characters = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюяABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789:|-.,! %";
         font = generator.generateFont(parameter);
         font.getRegion().getTexture().setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+
+        FreeTypeFontParameter smallParam = new FreeTypeFontParameter();
+        smallParam.size = 18;
+        smallParam.color = Color.WHITE;
+        smallParam.characters = parameter.characters;
+        smallFont = generator.generateFont(smallParam);
+        smallFont.getRegion().getTexture().setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+
         generator.dispose();
     }
 
@@ -247,7 +276,6 @@ public class Main extends ApplicationAdapter {
         platforms.add(new Platform(0, lastPlatformY, 800, platformHeight, false));
         player.reset(200, lastPlatformY + platformHeight);
         for (int i = 0; i < 5; i++) spawnPlatform();
-        challengeManager.startNewRun();
     }
 
     private void spawnPlatform() {
@@ -265,6 +293,7 @@ public class Main extends ApplicationAdapter {
         lastPlatformY = y;
         if (random.nextInt(100) < 70) warnings.add(new Warning(x - gap / 2f));
         if (random.nextInt(100) < 60) coins.add(new Coin(x + width / 2 - 32, y + 85f));
+        if (random.nextInt(100) < 5) {float shieldX = x + width / 2 - 20;float shieldY = y + 80;shields.add(new Shield(shieldX, shieldY));}
     }
 
     private void spawnMeteorite() {
@@ -273,7 +302,6 @@ public class Main extends ApplicationAdapter {
 
     private void checkAndSaveRecords() {
         lastScore = (int) score; prefs.putInteger("lastScore", lastScore);
-        totalCoins += point; prefs.putInteger("totalCoins", totalCoins);
         if ((int)score > highScore) { highScore = (int)score; prefs.putInteger("highScore", highScore); }
         prefs.flush();
     }
@@ -285,8 +313,22 @@ public class Main extends ApplicationAdapter {
 
     private void takeDamage() {
         health--;
-        if (health <= 0) { state = GameState.GAME_OVER; checkAndSaveRecords(); }
+        if (health <= 0) {
+            checkChallengeCompletion();
+            state = GameState.GAME_OVER;
+            checkAndSaveRecords();
+        }
         else { isInvincible = true; invincibilityTimer = 3f; }
+    }
+
+    private void checkChallengeCompletion() {
+        if (challengeManager.getActiveChallengeThisRun() != null && challengeManager.getActiveChallengeThisRun().isCompleted()) {
+            completedChallenge = challengeManager.getActiveChallengeThisRun();
+            totalCoins += completedChallenge.getReward();
+            prefs.putInteger("totalCoins", totalCoins);
+            prefs.flush();
+            state = GameState.CHALLENGE_COMPLETED;
+        }
     }
 
     private void drawCenteredText(String text, float x, float y, float width, float height) {
@@ -294,16 +336,9 @@ public class Main extends ApplicationAdapter {
         font.draw(batch, text, x + (width - glyphLayout.width) / 2, y + (height + glyphLayout.height) / 2);
     }
 
-    private void drawProgressBar(float x, float y, float width, float height, float progress) {
-        Pixmap pix = new Pixmap((int)width, (int)height, Pixmap.Format.RGBA8888);
-        pix.setColor(0.2f, 0.2f, 0.2f, 1f);
-        pix.fill();
-        pix.setColor(0.2f, 0.8f, 0.2f, 1f);
-        pix.fillRectangle(0, 0, (int)(width * progress), (int)height);
-        Texture barTex = new Texture(pix);
-        pix.dispose();
-        batch.draw(barTex, x, y, width, height);
-        barTex.dispose();
+    private void drawCenteredSmallText(String text, float x, float y, float width, float height) {
+        glyphLayout.setText(smallFont, text);
+        smallFont.draw(batch, text, x + (width - glyphLayout.width) / 2, y + (height + glyphLayout.height) / 2);
     }
 
     @Override
@@ -343,6 +378,8 @@ public class Main extends ApplicationAdapter {
         challengesRightButton = new Rectangle(wx + 275, wy + 140, 50, 50);
         challengesStartButton = new Rectangle(wx + 75, wy + 60, 250, 50);
 
+        completedBackButton = new Rectangle(wx + 75, wy + 80, 250, 50);
+
         gameOverContinueButton = new Rectangle(wx + 75, wy + 110, 250, 50);
         gameOverExitButton = new Rectangle(wx + 75, wy + 40, 250, 50);
 
@@ -355,11 +392,23 @@ public class Main extends ApplicationAdapter {
 
         if (state == GameState.RUNNING) {
             bgMusic.stop(); gameMusic.play();
-            gameSpeed += 3f * delta; if (!holdTime) score += gameSpeed * delta * 0.05f;
+            gameSpeed += 3f * delta;
+            if (!holdTime) {
+                score += gameSpeed * delta * 0.05f;
+            }
             float moveDistance = gameSpeed * delta;
             if (isInvincible) { invincibilityTimer -= delta; if (invincibilityTimer <= 0) isInvincible = false; }
             player.update(delta, platforms);
             challengeManager.updateDistance(score);
+
+            if (challengeManager.getActiveChallengeThisRun() != null && challengeManager.getActiveChallengeThisRun().isCompleted()) {
+                completedChallenge = challengeManager.getActiveChallengeThisRun();
+                totalCoins += completedChallenge.getReward();
+                prefs.putInteger("totalCoins", totalCoins);
+                prefs.flush();
+                state = GameState.CHALLENGE_COMPLETED;
+            }
+
             if (!holdTime) {
                 bgX -= (moveDistance * 0.4f);
                 if (bgX <= -viewport.getWorldWidth()) bgX = 0;
@@ -380,21 +429,20 @@ public class Main extends ApplicationAdapter {
             for (int i = monsterProjectiles.size() - 1; i >= 0; i--) {
                 MonsterProjectile mp = monsterProjectiles.get(i); mp.update(delta);
                 if (mp.isOffScreen()) monsterProjectiles.remove(i);
-                else if (!isInvincible && mp.getBounds().overlaps(new Rectangle(player.getX(), player.getY(), player.getWidth(), player.getHeight()))) { monsterProjectiles.remove(i); takeDamage(); }
-            }
+                else if (!isInvincible && mp.getBounds().overlaps(new Rectangle(player.getX(), player.getY(), player.getWidth(), player.getHeight()))) {monsterProjectiles.remove(i);if (player.hasShield) {player.breakShield();shieldBreakSound.play(volume);} else {takeDamage();}}}
             for (int i = meteorites.size() - 1; i >= 0; i--) {
                 Meteorite m = meteorites.get(i); m.update(delta);
-                if (!isInvincible && isColliding(player, m)) { meteorites.remove(i); takeDamage(); }
+                if (!isInvincible && isColliding(player, m)) { meteorites.remove(i); }
                 else if (m.getX() + m.getWidth() < -100) meteorites.remove(i);
             }
             for (int i = logs.size() - 1; i >= 0; i--) {
                 FallingLog log = logs.get(i); log.update(delta); if (!holdTime) log.move(moveDistance);
-                if (!isInvincible && isColliding(player, log)) { logs.remove(i); takeDamage(); }
+                if (!isInvincible && isColliding(player, log)) {logs.remove(i);if (player.hasShield) {player.breakShield();shieldBreakSound.play(volume);} else {takeDamage();}}
                 else if (log.getY() + log.getHeight() < 0) logs.remove(i);
             }
             for (int i = warnings.size() - 1; i >= 0; i--) {
                 Warning w = warnings.get(i); w.update(delta);
-                if (w.isFinished()) { logs.add(new FallingLog(w.getX() - 110f, viewport.getWorldHeight() + 100));  warnings.remove(i); }
+                if (w.isFinished()) { logs.add(new FallingLog(w.getX() - 110f, viewport.getWorldHeight() + 100)); warnings.remove(i); }
             }
             if (!holdTime) {
                 for (int i = platforms.size() - 1; i >= 0; i--) {
@@ -414,7 +462,34 @@ public class Main extends ApplicationAdapter {
                 if (isColliding(player, coin)) { coinSound.play(volume); coins.remove(i); point++; challengeManager.onCoinCollected(); }
                 else if (coin.getX() + coin.getWidth() < 0) coins.remove(i);
             }
-            if (player.getY() < -player.getHeight()) { state = GameState.GAME_OVER; checkAndSaveRecords(); }
+
+            for (int i = shields.size() - 1; i >= 0; i--) {
+                Shield s = shields.get(i);
+
+                if (!holdTime) {
+                    s.move(moveDistance);
+                }
+
+                if (s.getX() + s.getWidth() < 0) {
+                    shields.remove(i);
+                    continue;
+                }
+
+                if (isColliding(player, s)) {
+                    if (!player.hasShield) {
+                        player.activateShield();
+                        shieldSound.play(volume);
+                    }
+                    shields.remove(i);
+                }
+            }
+
+
+            if (player.getY() < -player.getHeight()) {
+                checkChallengeCompletion();
+                state = GameState.GAME_OVER;
+                checkAndSaveRecords();
+            }
         }
 
         if (Gdx.input.justTouched()) {
@@ -445,6 +520,17 @@ public class Main extends ApplicationAdapter {
                 if (challengesBackButton.contains(touch.x, touch.y)) state = GameState.MENU;
                 else if (challengesLeftButton.contains(touch.x, touch.y)) selectedChallengeIndex = (selectedChallengeIndex - 1 + challengeManager.getChallenges().size()) % challengeManager.getChallenges().size();
                 else if (challengesRightButton.contains(touch.x, touch.y)) selectedChallengeIndex = (selectedChallengeIndex + 1) % challengeManager.getChallenges().size();
+                else if (challengesStartButton.contains(touch.x, touch.y)) {
+                    Challenge selected = challengeManager.getChallenges().get(selectedChallengeIndex);
+                    if (!selected.isCompleted()) {
+                        challengeManager.startChallenge(selected);
+                        initGame();
+                        state = GameState.RUNNING;
+                    }
+                }
+            }
+            else if (state == GameState.CHALLENGE_COMPLETED) {
+                if (completedBackButton.contains(touch.x, touch.y)) state = GameState.MENU;
             }
             else if (state == GameState.SHOP) {
                 if (shopBackButton.contains(touch.x, touch.y)) state = GameState.MENU;
@@ -478,10 +564,22 @@ public class Main extends ApplicationAdapter {
             for (Meteorite m : meteorites) m.render(batch, meteoriteTexture);
             for (FallingLog l : logs) l.render(batch, logTexture);
             for (Monster m : monsters) m.render(batch);
+            for (Shield s : shields) {s.render(batch, shieldTexture);}
             for (MonsterProjectile mp : monsterProjectiles) mp.render(batch);
             if (!isInvincible || (int)(invincibilityTimer * 10) % 2 == 0) player.render(batch);
             for (int i = 0; i < 3; i++) batch.draw((i < health) ? heartFull : heartEmpty, viewport.getWorldWidth() - 150 + (i * 45), viewport.getWorldHeight() - 60, 40, 40);
+
+            if (challengeManager.isChallengeActive()) {
+                Challenge active = challengeManager.getActiveChallengeThisRun();
+                font.setColor(Color.YELLOW);
+                font.draw(batch, active.getName(), 30, viewport.getWorldHeight() - 110);
+                smallFont.setColor(Color.LIGHT_GRAY);
+                smallFont.draw(batch, (int)active.getCurrentProgress() + " / " + (int)active.getTargetValue() + " м", 30, viewport.getWorldHeight() - 135);
+                font.setColor(Color.WHITE);
+            }
+
             if (state == GameState.RUNNING) {
+                font.setColor(Color.WHITE);
                 font.draw(batch, (isRussian ? "Очки: " : "Points: ") + point, 30, viewport.getWorldHeight() - 30);
                 font.draw(batch, (isRussian ? "Счет: " : "Score: ") + (int) score, 30, viewport.getWorldHeight() - 70);
                 font.draw(batch, "||", pauseButton.x + 20, pauseButton.y + 40);
@@ -548,19 +646,18 @@ public class Main extends ApplicationAdapter {
             font.setColor(Color.GOLD); drawCenteredText(isRussian ? "ЧЕЛЛЕНДЖИ" : "CHALLENGES", wx, wy + 280, 400, 50); font.setColor(Color.WHITE);
 
             Challenge ch = challengeManager.getChallenges().get(selectedChallengeIndex);
-            drawCenteredText(ch.getName(), wx, wy + 220, 400, 50);
-            drawCenteredText(ch.getDescription(), wx, wy + 180, 400, 40);
-
-            font.setColor(Color.YELLOW);
-            drawCenteredText((int)ch.getCurrentProgress() + " / " + (int)ch.getTargetValue(), wx, wy + 130, 400, 40);
-            font.setColor(Color.WHITE);
-
-            drawProgressBar(wx + 50, wy + 110, 300, 15, ch.getProgressPercentage());
+            drawCenteredText(ch.getName(), wx, wy + 220, 400, 40);
+            drawCenteredSmallText(ch.getDescription(), wx, wy + 175, 400, 40);
 
             if (ch.isCompleted()) {
                 font.setColor(Color.GREEN);
-                drawCenteredText(isRussian ? "ВЫПОЛНЕНО!" : "COMPLETED!", wx, wy + 85, 400, 30);
+                drawCenteredText(isRussian ? "✓ ВЫПОЛНЕНО" : "✓ COMPLETED", wx, wy + 120, 400, 40);
+                smallFont.setColor(Color.YELLOW);
+                drawCenteredSmallText("+" + ch.getReward() + (isRussian ? " монет" : " coins"), wx, wy + 90, 400, 30);
                 font.setColor(Color.WHITE);
+            } else {
+                smallFont.setColor(Color.LIGHT_GRAY);
+                drawCenteredSmallText(isRussian ? "Не выполнено" : "Not completed", wx, wy + 120, 400, 30);
             }
 
             batch.draw(buttonTexture, challengesLeftButton.x, challengesLeftButton.y, challengesLeftButton.width, challengesLeftButton.height);
@@ -568,8 +665,26 @@ public class Main extends ApplicationAdapter {
             drawCenteredText("<", challengesLeftButton.x, challengesLeftButton.y, challengesLeftButton.width, challengesLeftButton.height);
             drawCenteredText(">", challengesRightButton.x, challengesRightButton.y, challengesRightButton.width, challengesRightButton.height);
 
+            if (!ch.isCompleted()) {
+                batch.draw(buttonTexture, challengesStartButton.x, challengesStartButton.y, 250, 50);
+                drawCenteredText(isRussian ? "НАЧАТЬ" : "START", challengesStartButton.x, challengesStartButton.y, 250, 50);
+            }
+
             batch.draw(buttonTexture, challengesBackButton.x, challengesBackButton.y, 250, 50);
             drawCenteredText(isRussian ? "НАЗАД" : "BACK", challengesBackButton.x, challengesBackButton.y, 250, 50);
+        }
+        else if (state == GameState.CHALLENGE_COMPLETED) {
+            batch.draw(backgroundMenu, 0, 0, bgWidth, viewport.getWorldHeight());
+            batch.draw(islandWindowTexture, wx, wy, 400, 350);
+            font.setColor(Color.GOLD); drawCenteredText(isRussian ? "ЧЕЛЛЕНЖ ВЫПОЛНЕН!" : "CHALLENGE COMPLETE!", wx, wy + 260, 400, 50); font.setColor(Color.WHITE);
+            drawCenteredText(completedChallenge.getName(), wx, wy + 190, 400, 40);
+            font.setColor(Color.YELLOW);
+            drawCenteredText("+" + completedChallenge.getReward(), wx, wy + 130, 400, 50);
+            smallFont.setColor(Color.LIGHT_GRAY);
+            drawCenteredSmallText(isRussian ? "монет получено" : "coins earned", wx, wy + 105, 400, 30);
+            font.setColor(Color.WHITE);
+            batch.draw(buttonTexture, completedBackButton.x, completedBackButton.y, 250, 50);
+            drawCenteredText(isRussian ? "НАЗАД" : "BACK", completedBackButton.x, completedBackButton.y, 250, 50);
         }
         else if (state == GameState.SHOP) {
             batch.draw(backgroundMenu, 0, 0, bgWidth, viewport.getWorldHeight());
@@ -605,9 +720,38 @@ public class Main extends ApplicationAdapter {
     private boolean isColliding(Character player, Coin coin) {
         return player.getX() < coin.getX() + coin.getWidth() && player.getX() + player.getWidth() > coin.getX() && player.getY() < coin.getY() + coin.getHeight() && player.getY() + player.getHeight() > coin.getY();
     }
-    private boolean isColliding(Character player, Meteorite m) {
-        float s = 12f; return player.getX() < m.getX() + m.getWidth() - s && player.getX() + player.getWidth() > m.getX() + s && player.getY() < m.getY() + m.getHeight() - s && player.getY() + player.getHeight() > m.getY() + s;
+
+    private boolean isColliding(Character player, Shield shield) {
+        return player.getX() < shield.getX() + shield.getWidth() &&
+            player.getX() + player.getWidth() > shield.getX() &&
+            player.getY() < shield.getY() + shield.getHeight() &&
+            player.getY() + player.getHeight() > shield.getY();
     }
+
+
+
+    private boolean isColliding(Character player, Meteorite m) {
+        float s = 12f;
+
+        boolean collision =
+            player.getX() < m.getX() + m.getWidth() - s &&
+                player.getX() + player.getWidth() > m.getX() + s &&
+                player.getY() < m.getY() + m.getHeight() - s &&
+                player.getY() + player.getHeight() > m.getY() + s;
+
+        if (collision) {
+            if (player.hasShield) {
+                player.breakShield();
+                shieldBreakSound.play(volume);
+            } else {
+                takeDamage();
+            }
+            return true;
+        }
+
+        return false;
+    }
+
     private boolean isColliding(Character player, FallingLog log) {
         float s = 12f; return player.getX() < log.getX() + log.getWidth() - s && player.getX() + player.getWidth() > log.getX() + s && player.getY() < log.getY() + log.getHeight() - s && player.getY() + player.getHeight() > log.getY() + s;
     }
@@ -615,6 +759,6 @@ public class Main extends ApplicationAdapter {
     @Override public void dispose() {
         batch.dispose(); for (Texture t : bgTextures) t.dispose(); backgroundMenu.dispose(); meteoriteTexture.dispose();
         darkOverlay.dispose(); islandWindowTexture.dispose(); buttonTexture.dispose(); Animations.dispose();
-        Platform.dispose(); Monster.dispose(); player.dispose(); font.dispose(); coinSound.dispose(); Coin.dispose();
+        Platform.dispose(); Monster.dispose(); player.dispose(); font.dispose(); smallFont.dispose(); coinSound.dispose(); Coin.dispose();  shieldSound.dispose();
     }
 }

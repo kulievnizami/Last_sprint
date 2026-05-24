@@ -11,7 +11,12 @@ public class Character {
     private float gravity = -2000f;
     private boolean onGround = true;
     private boolean canDoubleJump = false;
+
+    public boolean hasShield = false;
+    private float shieldTimer = 0;
     private Texture[] idleFrames;
+
+    private static Texture shieldTexture;
     private Animation<TextureRegion> idleAnimation;
     private float stateTime;
     private float x, y;
@@ -25,6 +30,8 @@ public class Character {
             idleFrames[i] = new Texture("idle" + (i + 1) + ".png");
             frames[i] = new TextureRegion(idleFrames[i]);
         }
+
+        shieldTexture = new Texture("shit.png");
         idleAnimation = new Animation<>(0.15f, frames);
         reset(startX, startY);
     }
@@ -40,13 +47,38 @@ public class Character {
         this.onGround = true;
         this.canDoubleJump = false;
         this.stateTime = 0f;
+        hasShield = false;
+        shieldTimer = 0;
     }
+
+
 
     public void update(float deltaTime, ArrayList<Platform> platforms) {
         stateTime += deltaTime;
         velocityY += gravity * deltaTime;
         y += velocityY * deltaTime;
         onGround = false;
+
+
+        if (hasShield) {
+            shieldTimer -= deltaTime;
+
+            if (shieldTimer <= 3f) {
+                if (((int)(shieldTimer * 10)) % 2 == 0) {
+                } else {
+                }
+            }
+
+            if (hasShield) {
+                shieldTimer -= deltaTime;
+
+                if (shieldTimer <= 0) {
+                    hasShield = false;
+                    shieldTimer = 0;
+                    Main.shieldBreakSound.play(Main.volume);
+                }
+            }
+        }
         for (Platform p : platforms) {
             if (velocityY <= 0) {
                 float charLeft = x + 15f;
@@ -82,6 +114,24 @@ public class Character {
     public void render(SpriteBatch batch) {
         TextureRegion frame = idleAnimation.getKeyFrame(stateTime, true);
         batch.draw(frame, x, y - feetOffset);
+
+        if (hasShield) {
+            if (shieldTimer > 4f || ((int)(shieldTimer * 10)) % 2 == 0) {
+                batch.draw(shieldTexture, x + 5, y + 10, getWidth() - 10, getHeight() - 10);
+            }
+        }
+    }
+
+
+
+    public void activateShield() {
+        hasShield = true;
+        shieldTimer = 15f;
+    }
+
+    public void breakShield() {
+        hasShield = false;
+        shieldTimer = 0;
     }
 
     public float getX() { return x; }

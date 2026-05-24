@@ -1,4 +1,4 @@
-package io.github.some_example_name;
+package io.github.some_example_name.objects;
 
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Animation;
@@ -8,7 +8,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 public class Coin {
     private static Texture coinSpritesheet;
     private static Animation<TextureRegion> coinAnimation;
-    private float stateTime; 
+    private float stateTime;
     private float x, y;
 
     public Coin(float startX, float startY) {
@@ -26,7 +26,7 @@ public class Coin {
 
         TextureRegion[][] tmpFrames = TextureRegion.split(coinSpritesheet, frameWidth, frameHeight);
         TextureRegion[] frames = new TextureRegion[cols];
-        
+
         for (int i = 0; i < cols; i++) {
             frames[i] = tmpFrames[0][i];
         }

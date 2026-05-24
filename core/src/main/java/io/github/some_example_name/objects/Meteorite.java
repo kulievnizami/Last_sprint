@@ -1,4 +1,4 @@
-package io.github.some_example_name;
+package io.github.some_example_name.objects;
 
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -17,15 +17,15 @@ public class Meteorite {
     }
     public void update(float delta) {
         x -= speedX * delta;
-        rotation -= 250f * delta; 
+        rotation -= 250f * delta;
     }
     public void render(SpriteBatch batch, Texture texture) {
         TextureRegion region = new TextureRegion(texture);
         batch.draw(
-            region, 
-            x, y, 
+            region,
+            x, y,
             width / 2f, height / 2f,
-            width, height, 
+            width, height,
             1f, 1f,
             rotation
         );

@@ -1,4 +1,4 @@
-package io.github.some_example_name;
+package io.github.some_example_name.objects;
 
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -17,7 +17,7 @@ public class FallingLog {
         y -= speed * delta;
     }
 
-    
+
     public void move(float distance) {
         x -= distance;
     }

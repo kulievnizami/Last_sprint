@@ -7,6 +7,7 @@ public class ChallengeManager {
     private float distanceTraveled;
     private boolean coinsCollectedThisRun;
     private boolean doubleJumpUsedThisRun;
+    private Challenge activeChallengeThisRun;
 
     public ChallengeManager() {
         challenges = new ArrayList<>();
@@ -16,27 +17,27 @@ public class ChallengeManager {
 
     private void initializeChallenges() {
         challenges.add(new Challenge(
-            "Без монет",
-            "Пройти 500 м не взяв ни одной монеты",
+            "БЕЗ МОНЕТ",
+            "Пройти 50м не собирая монеты",
             Challenge.ChallengeType.NO_COINS,
             50f,
-            50
-        ));
-
-        challenges.add(new Challenge(
-            "Без двойного прыжка",
-            "Доберись до 2000 м не используя двойной прыжок",
-            Challenge.ChallengeType.NO_DOUBLE_JUMP,
-            2000f,
             100
         ));
 
         challenges.add(new Challenge(
-            "Спринт",
-            "Пройди 1000 м за 60 секунд",
+            "БЕЗ ДВОЙНОГО ПРЫЖКА",
+            "Пройти 100м без двойного прыжка",
+            Challenge.ChallengeType.NO_DOUBLE_JUMP,
+            100f,
+            150
+        ));
+
+        challenges.add(new Challenge(
+            "СПРИНТ",
+            "Пройти 150м за время",
             Challenge.ChallengeType.SPEED_RUN,
-            1000f,
-            75
+            150f,
+            200
         ));
     }
 
@@ -44,22 +45,29 @@ public class ChallengeManager {
         distanceTraveled = 0;
         coinsCollectedThisRun = false;
         doubleJumpUsedThisRun = false;
+        activeChallengeThisRun = null;
+    }
+
+    public void startChallenge(Challenge challenge) {
+        activeChallengeThisRun = challenge;
+        challenge.reset();
+        resetProgress();
     }
 
     public void updateDistance(float score) {
         distanceTraveled = score / 10f;
 
-        for (Challenge c : challenges) {
-            if (c.getType() == Challenge.ChallengeType.NO_COINS) {
+        if (activeChallengeThisRun != null && !activeChallengeThisRun.isCompleted()) {
+            if (activeChallengeThisRun.getType() == Challenge.ChallengeType.NO_COINS) {
                 if (!coinsCollectedThisRun) {
-                    c.updateProgress(distanceTraveled);
+                    activeChallengeThisRun.updateProgress(distanceTraveled);
                 }
-            } else if (c.getType() == Challenge.ChallengeType.NO_DOUBLE_JUMP) {
+            } else if (activeChallengeThisRun.getType() == Challenge.ChallengeType.NO_DOUBLE_JUMP) {
                 if (!doubleJumpUsedThisRun) {
-                    c.updateProgress(distanceTraveled);
+                    activeChallengeThisRun.updateProgress(distanceTraveled);
                 }
-            } else if (c.getType() == Challenge.ChallengeType.SPEED_RUN) {
-                c.updateProgress(distanceTraveled);
+            } else if (activeChallengeThisRun.getType() == Challenge.ChallengeType.SPEED_RUN) {
+                activeChallengeThisRun.updateProgress(distanceTraveled);
             }
         }
     }
@@ -67,7 +75,7 @@ public class ChallengeManager {
     public void onCoinCollected() {
         coinsCollectedThisRun = true;
         Challenge noCoinChallenge = challenges.get(0);
-        if (!noCoinChallenge.isCompleted()) {
+        if (activeChallengeThisRun == noCoinChallenge && !noCoinChallenge.isCompleted()) {
             noCoinChallenge.reset();
         }
     }
@@ -75,18 +83,17 @@ public class ChallengeManager {
     public void onDoubleJumpUsed() {
         doubleJumpUsedThisRun = true;
         Challenge noDoubleJumpChallenge = challenges.get(1);
-        if (!noDoubleJumpChallenge.isCompleted()) {
+        if (activeChallengeThisRun == noDoubleJumpChallenge && !noDoubleJumpChallenge.isCompleted()) {
             noDoubleJumpChallenge.reset();
         }
     }
 
-    public void startNewRun() {
-        resetProgress();
-        for (Challenge c : challenges) {
-            if (!c.isCompleted()) {
-                c.reset();
-            }
-        }
+    public boolean isChallengeActive() {
+        return activeChallengeThisRun != null;
+    }
+
+    public Challenge getActiveChallengeThisRun() {
+        return activeChallengeThisRun;
     }
 
     public ArrayList<Challenge> getChallenges() { return challenges; }
