@@ -293,7 +293,7 @@ public class Main extends ApplicationAdapter {
         lastPlatformY = y;
         if (random.nextInt(100) < 70) warnings.add(new Warning(x - gap / 2f));
         if (random.nextInt(100) < 60) coins.add(new Coin(x + width / 2 - 32, y + 85f));
-        if (random.nextInt(100) < 5) {float shieldX = x + width / 2 - 20;float shieldY = y + 80;shields.add(new Shield(shieldX, shieldY));}
+        if (random.nextInt(100) < 8) {float shieldX = x + width / 2 - 20;float shieldY = y + 80;shields.add(new Shield(shieldX, shieldY));}
     }
 
     private void spawnMeteorite() {
