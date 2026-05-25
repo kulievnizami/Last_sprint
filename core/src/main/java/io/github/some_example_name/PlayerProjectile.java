@@ -14,9 +14,9 @@ public class PlayerProjectile {
         this.x = x;
         this.y = y;
         if (texture == null) {
-            
-            
-            
+
+
+
         }
     }
 

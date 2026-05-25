@@ -50,7 +50,7 @@ public class Monster {
 
         switch (state) {
             case HOVER:
-                
+
                 targetX = viewportWidth - 350;
                 targetY = 150 + MathUtils.sin(time * 2f) * 100f;
                 x += (targetX - x) * 1.5f * delta;
@@ -64,7 +64,7 @@ public class Monster {
                 break;
 
             case SHOOT:
-                
+
                 shootTimer += delta;
                 if (shootTimer > 0.8f && shotsFired < 3) {
                     float heightOffset = (shotsFired == 0) ? 50 : (shotsFired == 1) ? 0 : -50;
@@ -79,7 +79,7 @@ public class Monster {
                 break;
 
             case DASH:
-                
+
                 targetX = playerX - 50;
                 targetY = playerY - 50;
                 x += (targetX - x) * 2.5f * delta;
@@ -92,7 +92,7 @@ public class Monster {
                 break;
 
             case RETURN:
-                
+
                 targetX = viewportWidth - 350;
                 targetY = 300;
                 x += (targetX - x) * 1.5f * delta;
@@ -108,13 +108,13 @@ public class Monster {
 
     public void render(SpriteBatch batch) {
         int frame = (int)(time * 5) % 3;
-        
-        
+
+
         if (damageFlashTimer > 0 && (int)(damageFlashTimer * 20) % 2 == 0) {
-            batch.setColor(1, 0, 0, 0.8f); 
+            batch.setColor(1, 0, 0, 0.8f);
         }
         batch.draw(textures[frame], x, y, width, height);
-        batch.setColor(1, 1, 1, 1); 
+        batch.setColor(1, 1, 1, 1);
     }
 
     public boolean isHit(Rectangle playerRect) {
@@ -135,7 +135,7 @@ public class Monster {
     public float getY() { return y; }
     public float getWidth() { return width; }
     public float getHeight() { return height; }
-    
+
     public static void dispose() {
         for (Texture t : textures) t.dispose();
         for (Texture t : projectileTextures) t.dispose();

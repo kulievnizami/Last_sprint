@@ -23,7 +23,7 @@ public class StartupHelper {
 
 	private static final String JVM_RESTARTED_ARG = "jvmIsRestarted";
 
-	
+
 	public static boolean isLinuxNvidia() {
 		String[] drivers = new File("/proc/driver").list(
 			(dir, path) -> path.toUpperCase(Locale.ROOT).contains("NVIDIA")
@@ -32,24 +32,24 @@ public class StartupHelper {
 		return drivers.length > 0;
 	}
 
-	
+
 	public static boolean startNewJvmIfRequired() {
 		return startNewJvmIfRequired(true);
 	}
 
-	
+
 	public static boolean startNewJvmIfRequired(boolean inheritIO) {
 		String osName = System.getProperty("os.name").toLowerCase(Locale.ROOT);
 		if (osName.contains("mac")) return startNewJvm0( true, inheritIO);
 		if (osName.contains("windows")) {
-			
-			
-			
-			
-			
-			
+
+
+
+
+
+
 			String programData = System.getenv("ProgramData");
-			if (programData == null) programData = "C:\\Temp"; 
+			if (programData == null) programData = "C:\\Temp";
 			String prevTmpDir = System.getProperty("java.io.tmpdir", programData);
 			String prevUser = System.getProperty("user.name", "libGDX_User");
 			System.setProperty("java.io.tmpdir", programData + "\\libGDX-temp");
@@ -69,19 +69,19 @@ public class StartupHelper {
 	private static final String LINUX_JRE_ERR_MSG = "A Java installation could not be found. If you are distributing this app with a bundled JRE, be sure to set the environment variable '__GL_THREADED_OPTIMIZATIONS' to '0'!";
 	private static final String CHILD_LOOP_ERR_MSG = "The current JVM process is a spawned child JVM process, but StartupHelper has attempted to spawn another child JVM process! This is a broken state, and should not normally happen! Your game may crash or not function properly!";
 
-	
+
 	public static boolean startNewJvm0(boolean isMac, boolean inheritIO) {
 		long processID = getProcessID(isMac);
 		if (!isMac) {
-			
+
 			if (!isLinuxNvidia()) return false;
-			
+
 			if ("0".equals(System.getenv("__GL_THREADED_OPTIMIZATIONS"))) return false;
 		} else {
-			
+
 			if (!System.getProperty("org.graalvm.nativeimage.imagecode", "").isEmpty()) return false;
 
-			
+
 			long objcMsgSend = ObjCRuntime.getLibrary().getFunctionAddress("objc_msgSend");
 			long nsThread = ObjCRuntime.objc_getClass("NSThread");
 			long currentThread = JNI.invokePPP(nsThread, ObjCRuntime.sel_getUid("currentThread"), objcMsgSend);
@@ -91,19 +91,19 @@ public class StartupHelper {
 			if ("1".equals(System.getenv("JAVA_STARTED_ON_FIRST_THREAD_" + processID))) return false;
 		}
 
-		
-		
+
+
 		if ("true".equals(System.getProperty(JVM_RESTARTED_ARG))) {
 			System.err.println(CHILD_LOOP_ERR_MSG);
 			return false;
 		}
 
-		
+
 		List<String> jvmArgs = new ArrayList<>();
-		
+
 		String javaExecPath = System.getProperty("java.home") + "/bin/java";
-		
-		
+
+
 		if (!(new File(javaExecPath).exists())) {
 			System.err.println(getJreErrMsg(isMac));
 			return false;
@@ -134,7 +134,7 @@ public class StartupHelper {
 			else processBuilder.inheritIO().start().waitFor();
 		} catch (Exception e) {
 			System.err.println("There was a problem restarting the JVM.");
-			
+
 			e.printStackTrace();
 		}
 

@@ -16,8 +16,8 @@ public class MonsterProjectile {
         this.x = x;
         this.y = y;
         this.textures = textures;
-        
-        
+
+
         this.dirX = -1;
         this.dirY = 0;
     }
