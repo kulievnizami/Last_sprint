@@ -24,6 +24,7 @@ import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 
+import io.github.some_example_name.objects.Clock;
 import io.github.some_example_name.objects.Coin;
 import io.github.some_example_name.objects.FallingLog;
 import io.github.some_example_name.objects.Meteorite;
@@ -50,6 +51,7 @@ public class Main extends ApplicationAdapter {
     private Texture backgroundMenu;
     private Music bgMusic;
     private Music gameMusic;
+    private Music timeMusic;
 
     private Texture darkOverlay;
     private Texture meteoriteTexture;
@@ -61,6 +63,7 @@ public class Main extends ApplicationAdapter {
     private Texture buttonTexture;
 
     private float gameSpeed;
+    private boolean gameMusicStarted = false;
 
     private Random random = new Random();
     private Viewport viewport;
@@ -90,7 +93,14 @@ public class Main extends ApplicationAdapter {
     private Sound shieldSound;
     public static Sound shieldBreakSound;
 
+    public static Sound shootSound;
+    public static Sound monsterRoar;
+    public static Sound monsterHit;
+
     private ArrayList<MonsterProjectile> monsterProjectiles;
+    private ArrayList<Clock> clocks;
+    private boolean timePowerActive = false;
+    private float timePowerTimer = 0f;
     private Texture warningTexture;
     private Texture heartFull, heartEmpty;
     private int health = 3;
@@ -151,6 +161,8 @@ public class Main extends ApplicationAdapter {
         Platform.load();
         Coin.load();
         Monster.load();
+        Clock.load();
+
 
         challengeManager = new ChallengeManager();
         Character.setChallengeManager(challengeManager);
@@ -179,14 +191,22 @@ public class Main extends ApplicationAdapter {
         warnings = new ArrayList<>();
         warningTexture = new Texture("Warning.png");
         logs = new ArrayList<>();
+        clocks = new ArrayList<>();
         logTexture = new Texture("log.png");
         meteoriteTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
 
         coinSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/coin_play.mp3"));
 
+
+        timeMusic = Gdx.audio.newMusic(Gdx.files.internal("Sounds/tStart.mp3"));
+        timeMusic.setLooping(false);
+        timeMusic.setVolume(volume);
         bgMusic = Gdx.audio.newMusic(Gdx.files.internal("Sounds/bg_music.mp3"));
         shieldSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/Startshit.mp3"));
         shieldBreakSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/BreakShit.mp3"));
+        shootSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/fireball.mp3"));
+        monsterRoar = Gdx.audio.newSound(Gdx.files.internal("Sounds/monster.mp3"));
+        monsterHit = Gdx.audio.newSound(Gdx.files.internal("Sounds/monsterhur.mp3"));
         bgMusic.setLooping(true);
         bgMusic.setVolume(volume);
 
@@ -266,6 +286,7 @@ public class Main extends ApplicationAdapter {
     }
 
     private void initGame() {
+        challengeManager.resetProgress();
         point = 0; score = 0; health = 3; invincibilityTimer = 0; isInvincible = false;
         gameSpeed = 550f;
         platforms.clear(); coins.clear(); meteorites.clear(); monsters.clear();
@@ -277,6 +298,8 @@ public class Main extends ApplicationAdapter {
         player.reset(200, lastPlatformY + platformHeight);
         for (int i = 0; i < 5; i++) spawnPlatform();
     }
+
+
 
     private void spawnPlatform() {
         float platformHeight = 45f, width = 520f, gap = 350f;
@@ -291,10 +314,10 @@ public class Main extends ApplicationAdapter {
         boolean breakable = random.nextFloat() < 0.3f;
         platforms.add(new Platform(x, y, width, platformHeight, breakable));
         lastPlatformY = y;
+        if (!timePowerActive && random.nextInt(100) < 5) {float clockX = x + width / 2 - 20;float clockY = y + 80;clocks.add(new Clock(clockX, clockY));}
         if (random.nextInt(100) < 70) warnings.add(new Warning(x - gap / 2f));
         if (random.nextInt(100) < 60) coins.add(new Coin(x + width / 2 - 32, y + 85f));
-        if (random.nextInt(100) < 8) {float shieldX = x + width / 2 - 20;float shieldY = y + 80;shields.add(new Shield(shieldX, shieldY));}
-    }
+        if (!timePowerActive && random.nextInt(100) < 8) {float shieldX = x + width / 2 - 20;float shieldY = y + 80;shields.add(new Shield(shieldX, shieldY));}}
 
     private void spawnMeteorite() {
         meteorites.add(new Meteorite(viewport.getWorldWidth() + 50, 320 + random.nextInt(80), gameSpeed + 150f + random.nextInt(150)));
@@ -391,10 +414,13 @@ public class Main extends ApplicationAdapter {
         else if (state == GameState.PAUSED && Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) state = GameState.RUNNING;
 
         if (state == GameState.RUNNING) {
-            bgMusic.stop(); gameMusic.play();
+            bgMusic.stop();
             gameSpeed += 3f * delta;
             if (!holdTime) {
                 score += gameSpeed * delta * 0.05f;
+            }
+            if (!gameMusic.isPlaying() && !timePowerActive) {
+                gameMusic.play();
             }
             float moveDistance = gameSpeed * delta;
             if (isInvincible) { invincibilityTimer -= delta; if (invincibilityTimer <= 0) isInvincible = false; }
@@ -409,16 +435,35 @@ public class Main extends ApplicationAdapter {
                 state = GameState.CHALLENGE_COMPLETED;
             }
 
+            if (timePowerActive) {
+                timePowerTimer -= delta;
+
+                if (timePowerTimer <= 0) {
+                    timePowerActive = false;
+                    timeMusic.stop();
+                    gameMusic.play();
+                }
+            }
+
             if (!holdTime) {
                 bgX -= (moveDistance * 0.4f);
                 if (bgX <= -viewport.getWorldWidth()) bgX = 0;
             }
             boolean monsterActive = !monsters.isEmpty();
             if (!monsterActive) {
-                if (score >= nextMeteorSpawnScore) { spawnMeteorite(); nextMeteorSpawnScore = score + 100f + random.nextInt(200); }
-                if (score >= nextLogSpawnScore) { warnings.add(new Warning(viewport.getWorldWidth() - 100f)); nextLogSpawnScore += 200f; }
+                if (!timePowerActive && score >= nextMeteorSpawnScore) {spawnMeteorite();nextMeteorSpawnScore = score + 100f + random.nextInt(200);}
+
+                if (!timePowerActive && score >= nextLogSpawnScore) {warnings.add(new Warning(viewport.getWorldWidth() - 100f));nextLogSpawnScore += 200f;}
+
             }
-            if (score >= nextMonsterSpawnScore && !monsterActive) { monsters.add(new Monster(viewport.getWorldWidth() + 200, 300)); nextMonsterSpawnScore += 500f; meteorites.clear(); logs.clear(); warnings.clear(); }
+            if (!timePowerActive && score >= nextMonsterSpawnScore && !monsterActive) {
+                monsters.add(new Monster(viewport.getWorldWidth() + 200, 300));
+                nextMonsterSpawnScore += 500f;
+                meteorites.clear();
+                monsterRoar.play(volume);
+                logs.clear();
+                warnings.clear();
+            }
             for (int i = monsters.size() - 1; i >= 0; i--) {
                 Monster m = monsters.get(i); m.update(delta, player.getX(), player.getY(), viewport.getWorldWidth(), monsterProjectiles);
                 Rectangle playerRect = new Rectangle(player.getX(), player.getY(), player.getWidth(), player.getHeight());
@@ -461,6 +506,9 @@ public class Main extends ApplicationAdapter {
                 Coin coin = coins.get(i); if (!holdTime) coin.move(moveDistance); coin.updateTime(delta);
                 if (isColliding(player, coin)) { coinSound.play(volume); coins.remove(i); point++; challengeManager.onCoinCollected(); }
                 else if (coin.getX() + coin.getWidth() < 0) coins.remove(i);
+                if (timePowerActive) {
+                    coins.clear();
+                }
             }
 
             for (int i = shields.size() - 1; i >= 0; i--) {
@@ -481,6 +529,39 @@ public class Main extends ApplicationAdapter {
                         shieldSound.play(volume);
                     }
                     shields.remove(i);
+                }
+            }
+
+
+            for (int i = clocks.size() - 1; i >= 0; i--) {
+                Clock c = clocks.get(i);
+
+                if (!holdTime) {
+                    c.move(moveDistance);
+                }
+
+
+
+                if (isColliding(player, c)) {
+                    timePowerActive = true;
+                    timePowerTimer = 15f;
+                    if (gameMusic != null) gameMusic.pause();
+                    if (timeMusic != null) {
+                        timeMusic.stop();
+                        timeMusic.play();
+                    }
+                    coins.clear();
+                    logs.clear();
+                    warnings.clear();
+                    monsters.clear();
+                    monsterProjectiles.clear();
+                    shields.clear();
+
+                    clocks.remove(i);
+                }
+
+                if (c.getX() + c.getWidth() < 0) {
+                    clocks.remove(i);
                 }
             }
 
@@ -558,6 +639,15 @@ public class Main extends ApplicationAdapter {
         if (state == GameState.RUNNING || state == GameState.GAME_OVER || state == GameState.PAUSED) {
             batch.draw(bgTextures[activeBgIndex], bgX, 0, bgWidth, viewport.getWorldHeight());
             batch.draw(bgTextures[activeBgIndex], bgX + bgWidth - 2f, 0, bgWidth, viewport.getWorldHeight());
+            if (timePowerActive) {
+                boolean blink = timePowerTimer <= 3f && ((int)(timePowerTimer * 8) % 2 == 0);
+                if (timePowerTimer > 3f || blink) {
+                    batch.setColor(1f, 0.2f, 0.2f, 0.8f);
+                    batch.draw(bgTextures[activeBgIndex], bgX, 0, bgWidth, viewport.getWorldHeight());
+                    batch.draw(bgTextures[activeBgIndex], bgX + bgWidth - 2f, 0, bgWidth, viewport.getWorldHeight());
+                    batch.setColor(1f, 1f, 1f, 1f);
+                }
+            }
             for (Warning w : warnings) w.render(batch, warningTexture, viewport);
             for (Platform p : platforms) p.render(batch);
             for (Coin c : coins) c.render(batch);
@@ -565,6 +655,7 @@ public class Main extends ApplicationAdapter {
             for (FallingLog l : logs) l.render(batch, logTexture);
             for (Monster m : monsters) m.render(batch);
             for (Shield s : shields) {s.render(batch, shieldTexture);}
+            for (Clock c : clocks) {c.render(batch);}
             for (MonsterProjectile mp : monsterProjectiles) mp.render(batch);
             if (!isInvincible || (int)(invincibilityTimer * 10) % 2 == 0) player.render(batch);
             for (int i = 0; i < 3; i++) batch.draw((i < health) ? heartFull : heartEmpty, viewport.getWorldWidth() - 150 + (i * 45), viewport.getWorldHeight() - 60, 40, 40);
@@ -726,6 +817,12 @@ public class Main extends ApplicationAdapter {
             player.getX() + player.getWidth() > shield.getX() &&
             player.getY() < shield.getY() + shield.getHeight() &&
             player.getY() + player.getHeight() > shield.getY();
+    }
+    private boolean isColliding(Character player, Clock clock) {
+        return player.getX() < clock.getX() + clock.getWidth() &&
+            player.getX() + player.getWidth() > clock.getX() &&
+            player.getY() < clock.getY() + clock.getHeight() &&
+            player.getY() + player.getHeight() > clock.getY();
     }
 
 

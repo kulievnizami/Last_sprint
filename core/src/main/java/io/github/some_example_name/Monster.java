@@ -19,6 +19,10 @@ public class Monster {
     private int health = 3;
     private int maxHealth = 3;
     private float damageFlashTimer = 0;
+
+    private boolean slowTimeActive = false;
+    private float slowTimeTimer = 0;
+    private float slowTimeDuration = 15f;
     private boolean active = true;
 
     private static Texture[] textures;
@@ -69,6 +73,7 @@ public class Monster {
                 if (shootTimer > 0.8f && shotsFired < 3) {
                     float heightOffset = (shotsFired == 0) ? 50 : (shotsFired == 1) ? 0 : -50;
                     projectiles.add(new MonsterProjectile(x + width / 4, y + height / 2 + heightOffset, projectileTextures, playerX + 32, playerY + 32));
+                    Main.shootSound.play(Main.volume);
                     shootTimer = 0;
                     shotsFired++;
                 }
@@ -124,6 +129,7 @@ public class Monster {
 
     public void takeDamage() {
         health--;
+        Main.monsterRoar.play(Main.volume);
         damageFlashTimer = 0.5f;
         if (health <= 0) active = false;
     }

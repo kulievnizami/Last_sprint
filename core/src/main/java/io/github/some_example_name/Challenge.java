@@ -25,6 +25,12 @@ public class Challenge {
         this.currentProgress = value;
         if (currentProgress >= targetValue) {
             completed = true;
+
+
+        }
+        if (currentProgress >= targetValue) {
+            completed = true;
+            System.out.println("COMPLETED!");
         }
     }
 

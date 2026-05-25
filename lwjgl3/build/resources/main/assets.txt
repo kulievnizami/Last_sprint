@@ -6,7 +6,11 @@ Sounds/BreakShit.mp3
 Sounds/Coin_play.mp3
 Sounds/Startshit.mp3
 Sounds/bg_music.mp3
+Sounds/fireball.mp3
 Sounds/game_music.mp3
+Sounds/monster.mp3
+Sounds/monsterhur.mp3
+Sounds/tStart.mp3
 Warning.png
 bg_menu.png
 bg_place2.png
@@ -34,3 +38,4 @@ monster2.png
 monster3.png
 playt.png
 shit.png
+time.png

@@ -54,40 +54,59 @@ public class ChallengeManager {
         resetProgress();
     }
 
+
     public void updateDistance(float score) {
         distanceTraveled = score / 10f;
+        System.out.println(distanceTraveled);
+
 
         if (activeChallengeThisRun != null && !activeChallengeThisRun.isCompleted()) {
-            if (activeChallengeThisRun.getType() == Challenge.ChallengeType.NO_COINS) {
-                if (!coinsCollectedThisRun) {
+
+            switch (activeChallengeThisRun.getType()) {
+
+                case NO_COINS:
+                    if (coinsCollectedThisRun) {
+                        activeChallengeThisRun = null;
+                    } else {
+                        activeChallengeThisRun.updateProgress(distanceTraveled);
+                    }
+                    break;
+
+                case NO_DOUBLE_JUMP:
+                    if (doubleJumpUsedThisRun) {
+                        activeChallengeThisRun = null;
+                    } else {
+                        activeChallengeThisRun.updateProgress(distanceTraveled);
+                    }
+                    break;
+
+                case SPEED_RUN:
                     activeChallengeThisRun.updateProgress(distanceTraveled);
-                }
-            } else if (activeChallengeThisRun.getType() == Challenge.ChallengeType.NO_DOUBLE_JUMP) {
-                if (!doubleJumpUsedThisRun) {
-                    activeChallengeThisRun.updateProgress(distanceTraveled);
-                }
-            } else if (activeChallengeThisRun.getType() == Challenge.ChallengeType.SPEED_RUN) {
-                activeChallengeThisRun.updateProgress(distanceTraveled);
+                    break;
             }
         }
     }
 
     public void onCoinCollected() {
         coinsCollectedThisRun = true;
-        Challenge noCoinChallenge = challenges.get(0);
-        if (activeChallengeThisRun == noCoinChallenge && !noCoinChallenge.isCompleted()) {
-            noCoinChallenge.reset();
+
+        if (activeChallengeThisRun != null &&
+            activeChallengeThisRun.getType() == Challenge.ChallengeType.NO_COINS) {
+
+            activeChallengeThisRun = null;
         }
     }
+
 
     public void onDoubleJumpUsed() {
         doubleJumpUsedThisRun = true;
-        Challenge noDoubleJumpChallenge = challenges.get(1);
-        if (activeChallengeThisRun == noDoubleJumpChallenge && !noDoubleJumpChallenge.isCompleted()) {
-            noDoubleJumpChallenge.reset();
+
+        if (activeChallengeThisRun != null &&
+            activeChallengeThisRun.getType() == Challenge.ChallengeType.NO_DOUBLE_JUMP) {
+
+            activeChallengeThisRun = null;
         }
     }
-
     public boolean isChallengeActive() {
         return activeChallengeThisRun != null;
     }
