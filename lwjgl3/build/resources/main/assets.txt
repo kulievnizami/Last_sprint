@@ -3,11 +3,13 @@ Robot-russian.ttf
 Robot_anglich.ttf
 Sounds/BreakPlat.mp3
 Sounds/BreakShit.mp3
-Sounds/Coin_play.mp3
 Sounds/Startshit.mp3
 Sounds/bg_music.mp3
+Sounds/coin_play.mp3
 Sounds/fireball.mp3
 Sounds/game_music.mp3
+Sounds/game_music2.mp3
+Sounds/game_music3.mp3
 Sounds/monster.mp3
 Sounds/monsterhur.mp3
 Sounds/tStart.mp3

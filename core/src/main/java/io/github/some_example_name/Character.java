@@ -53,7 +53,7 @@ public class Character {
 
 
 
-    public void update(float deltaTime, ArrayList<Platform> platforms) {
+    public void update(float deltaTime, ArrayList<Platform> platforms, boolean ignoreTouch) {
         stateTime += deltaTime;
         velocityY += gravity * deltaTime;
         y += velocityY * deltaTime;
@@ -96,7 +96,8 @@ public class Character {
                 }
             }
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) || Gdx.input.justTouched()) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) ||
+            (Gdx.input.justTouched() && !ignoreTouch)) {
             if (onGround) {
                 velocityY = 850f;
                 onGround = false;
@@ -104,9 +105,6 @@ public class Character {
             } else if (canDoubleJump) {
                 velocityY = 800f;
                 canDoubleJump = false;
-                if (challengeManager != null) {
-                    challengeManager.onDoubleJumpUsed();
-                }
             }
         }
     }

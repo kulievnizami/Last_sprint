@@ -13,6 +13,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.utils.ScreenUtils;
+import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.badlogic.gdx.math.Rectangle;
@@ -46,15 +47,26 @@ public class Main extends ApplicationAdapter {
     private boolean[] unlockedBgs = {true, false, false};
     private int[] bgPrices = {0, 10, 50};
 
+    private int shopTab = 0; // 0 = фоны, 1 = музыка
+    private int selectedMusicInShop = 0;
+    private int activeMusicIndex = 0;
+    private boolean[] unlockedMusics = {true, false, false};
+    private boolean holdButtonPressed = false;
+    private int[] musicPrices = {0, 30, 75};
+    private String[] musicNames = {isRussian ? "Музыка 1" : "Music 1", isRussian ? "Музыка 2" : "Music 2", isRussian ? "Музыка 3" : "Music 3"};
+
     private SpriteBatch batch;
     private Texture[] bgTextures;
     private Texture backgroundMenu;
     private Music bgMusic;
     private Music gameMusic;
     private Music timeMusic;
+    private Music[] gameMusics;
 
     private Texture darkOverlay;
     private Texture meteoriteTexture;
+    private Texture arrowLeftTexture;
+    private Texture arrowRightTexture;
 
     private ArrayList<FallingLog> logs;
     private Texture logTexture;
@@ -135,6 +147,8 @@ public class Main extends ApplicationAdapter {
     private Rectangle shopNextBgButton;
     private Rectangle shopBuySelectButton;
     private Rectangle shopBackButton;
+    private Rectangle shopTabBgButton;
+    private Rectangle shopTabMusicButton;
 
     private Rectangle authorsBackButton;
 
@@ -143,6 +157,7 @@ public class Main extends ApplicationAdapter {
     private Rectangle challengesRightButton;
     private Rectangle challengesStartButton;
 
+    private Rectangle holdButton;
     private Rectangle completedBackButton;
 
     private Rectangle pauseButton;
@@ -168,16 +183,28 @@ public class Main extends ApplicationAdapter {
         Character.setChallengeManager(challengeManager);
 
         prefs = Gdx.app.getPreferences("RetroRunnerSettings");
+
+        for (int i = 0; i < challengeManager.getChallenges().size(); i++) {
+            if (prefs.getBoolean("challengeDone_" + i, false)) {
+                challengeManager.getChallenges().get(i).markCompleted();
+            }
+        }
         lastScore = prefs.getInteger("lastScore", 0);
         highScore = prefs.getInteger("highScore", 0);
         totalCoins = prefs.getInteger("totalCoins", 0);
         activeBgIndex = prefs.getInteger("activeBgIndex", 0);
+        activeMusicIndex = prefs.getInteger("activeMusicIndex", 0);
         isRussian = prefs.getBoolean("isRussian", true);
         volume = prefs.getFloat("volume", 1.0f);
         unlockedBgs = new boolean[]{
             true,
             prefs.getBoolean("bgUnlocked1", false),
             prefs.getBoolean("bgUnlocked2", false)
+        };
+        unlockedMusics = new boolean[]{
+            true,
+            prefs.getBoolean("musicUnlocked1", false),
+            prefs.getBoolean("musicUnlocked2", false)
         };
 
         Texture coinAnimSheet = new Texture("coinanim.png");
@@ -214,6 +241,13 @@ public class Main extends ApplicationAdapter {
         gameMusic.setLooping(true);
         gameMusic.setVolume(volume);
 
+        gameMusics = new Music[3];
+        gameMusics[0] = Gdx.audio.newMusic(Gdx.files.internal("Sounds/game_music.mp3"));
+        gameMusics[1] = Gdx.audio.newMusic(Gdx.files.internal("Sounds/game_music2.mp3"));
+        gameMusics[2] = Gdx.audio.newMusic(Gdx.files.internal("Sounds/game_music3.mp3"));
+        for (Music m : gameMusics) { m.setLooping(true); m.setVolume(volume); }
+        gameMusic = gameMusics[activeMusicIndex];
+
         bgMusic.play();
 
         loadFont();
@@ -228,7 +262,7 @@ public class Main extends ApplicationAdapter {
         heartFull = new Texture("heart1.png");
         heartEmpty = new Texture("heart2.png");
 
-        viewport = new ScreenViewport();
+        viewport = new FitViewport(1600, 900);
 
         Pixmap pixmapOverlay = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
         pixmapOverlay.setColor(0, 0, 0, 0.6f);
@@ -252,6 +286,31 @@ public class Main extends ApplicationAdapter {
         pixmapBtn.drawRectangle(0, 0, 250, 50);
         buttonTexture = new Texture(pixmapBtn);
         pixmapBtn.dispose();
+
+        Pixmap arrowL = new Pixmap(50, 50, Pixmap.Format.RGBA8888);
+        arrowL.setColor(0, 0, 0, 0);
+        arrowL.fill();
+        arrowL.setColor(1f, 1f, 1f, 1f);
+        for (int row = 0; row < 50; row++) {
+            int half = 25;
+            int spread = (int)(row < half ? row * 0.9f : (50 - row) * 0.9f);
+            arrowL.drawLine(half - spread, row, half, row);
+        }
+        arrowLeftTexture = new Texture(arrowL);
+        arrowL.dispose();
+
+
+        Pixmap arrowR = new Pixmap(50, 50, Pixmap.Format.RGBA8888);
+        arrowR.setColor(0, 0, 0, 0);
+        arrowR.fill();
+        arrowR.setColor(1f, 1f, 1f, 1f);
+        for (int row = 0; row < 50; row++) {
+            int half = 25;
+            int spread = (int)(row < half ? row * 0.9f : (50 - row) * 0.9f);
+            arrowR.drawLine(half, row, half + spread, row);
+        }
+        arrowRightTexture = new Texture(arrowR);
+        arrowR.dispose();
 
         player = new Character(200, 300);
         coins = new ArrayList<>();
@@ -286,9 +345,22 @@ public class Main extends ApplicationAdapter {
     }
 
     private void initGame() {
-        challengeManager.resetProgress();
+        challengeManager.applyPendingChallenge();
         point = 0; score = 0; health = 3; invincibilityTimer = 0; isInvincible = false;
         gameSpeed = 550f;
+        timePowerActive = false;
+        timePowerTimer = 0f;
+
+        if (timeMusic != null) {
+            timeMusic.stop();
+        }
+
+
+        if (state == GameState.RUNNING) {
+            if (gameMusic != null && !gameMusic.isPlaying()) {
+                gameMusic.play();
+            }
+        }
         platforms.clear(); coins.clear(); meteorites.clear(); monsters.clear();
         monsterProjectiles.clear(); logs.clear(); warnings.clear();
         nextMeteorSpawnScore = 100f + random.nextInt(200);
@@ -301,24 +373,53 @@ public class Main extends ApplicationAdapter {
 
 
 
+
     private void spawnPlatform() {
-        float platformHeight = 45f, width = 520f, gap = 350f;
+        float platformHeight = 45f;
+        float width = 520f;
+        float gap = 350f;
+
         float yChange = -40 + random.nextInt(80);
         float y = lastPlatformY + yChange;
-        if (y < 60) y = 60; if (y > 250) y = 250;
-        float x = 0;
-        if (!platforms.isEmpty()) {
+
+        if (y < 60) y = 60;
+        if (y > 250) y = 250;
+
+        float x;
+
+        if (platforms.isEmpty()) {
+            x = viewport.getWorldWidth();
+        } else {
             Platform lastPlatform = platforms.get(platforms.size() - 1);
             x = lastPlatform.getX() + lastPlatform.getWidth() + gap;
         }
-        boolean breakable = random.nextFloat() < 0.3f;
-        platforms.add(new Platform(x, y, width, platformHeight, breakable));
-        lastPlatformY = y;
-        if (!timePowerActive && random.nextInt(100) < 5) {float clockX = x + width / 2 - 20;float clockY = y + 80;clocks.add(new Clock(clockX, clockY));}
-        if (random.nextInt(100) < 70) warnings.add(new Warning(x - gap / 2f));
-        if (random.nextInt(100) < 60) coins.add(new Coin(x + width / 2 - 32, y + 85f));
-        if (!timePowerActive && random.nextInt(100) < 8) {float shieldX = x + width / 2 - 20;float shieldY = y + 80;shields.add(new Shield(shieldX, shieldY));}}
 
+        boolean breakable = random.nextFloat() < 0.3f;
+
+        platforms.add(new Platform(x, y, width, platformHeight, breakable));
+
+        lastPlatformY = y;
+
+        if (!timePowerActive && random.nextInt(100) < 5) {
+            float clockX = x + width / 2 - 20;
+            float clockY = y + 80;
+            clocks.add(new Clock(clockX, clockY));
+        }
+
+        if (random.nextInt(100) < 70) {
+            warnings.add(new Warning(x - gap / 2f));
+        }
+
+        if (random.nextInt(100) < 60) {
+            coins.add(new Coin(x + width / 2 - 32, y + 85f));
+        }
+
+        if (!timePowerActive && random.nextInt(100) < 8) {
+            float shieldX = x + width / 2 - 20;
+            float shieldY = y + 80;
+            shields.add(new Shield(shieldX, shieldY));
+        }
+    }
     private void spawnMeteorite() {
         meteorites.add(new Meteorite(viewport.getWorldWidth() + 50, 320 + random.nextInt(80), gameSpeed + 150f + random.nextInt(150)));
     }
@@ -326,6 +427,8 @@ public class Main extends ApplicationAdapter {
     private void checkAndSaveRecords() {
         lastScore = (int) score; prefs.putInteger("lastScore", lastScore);
         if ((int)score > highScore) { highScore = (int)score; prefs.putInteger("highScore", highScore); }
+        totalCoins += point;
+        prefs.putInteger("totalCoins", totalCoins);
         prefs.flush();
     }
 
@@ -349,6 +452,8 @@ public class Main extends ApplicationAdapter {
             completedChallenge = challengeManager.getActiveChallengeThisRun();
             totalCoins += completedChallenge.getReward();
             prefs.putInteger("totalCoins", totalCoins);
+            int idx = challengeManager.getChallenges().indexOf(completedChallenge);
+            if (idx >= 0) prefs.putBoolean("challengeDone_" + idx, true);
             prefs.flush();
             state = GameState.CHALLENGE_COMPLETED;
         }
@@ -368,7 +473,22 @@ public class Main extends ApplicationAdapter {
     public void render() {
         ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
         float delta = Gdx.graphics.getDeltaTime();
-        boolean holdTime = Gdx.input.isKeyPressed(Input.Keys.R) && player.isOnGround();
+
+        holdButtonPressed = false;
+
+        if (Gdx.input.isTouched()) {
+
+            Vector2 touchCheck = viewport.unproject(
+                new Vector2(Gdx.input.getX(), Gdx.input.getY())
+            );
+
+            if (holdButton.contains(touchCheck.x, touchCheck.y)) {
+                holdButtonPressed = true;
+            }
+        }
+
+        boolean holdTime =
+            (Gdx.input.isKeyPressed(Input.Keys.R) || holdButtonPressed) && player.isOnGround();
         viewport.apply(); batch.setProjectionMatrix(viewport.getCamera().combined);
 
         float curWinHeight = (state == GameState.MENU) ? 450 : 350;
@@ -393,6 +513,10 @@ public class Main extends ApplicationAdapter {
         shopNextBgButton = new Rectangle(wx + 75, wy + 140, 250, 50);
         shopBuySelectButton = new Rectangle(wx + 75, wy + 80, 250, 50);
         shopBackButton = new Rectangle(wx + 75, wy + 20, 250, 50);
+        shopTabBgButton = new Rectangle(wx + 0, wy + 400, 120, 50);
+        shopTabMusicButton = new Rectangle(wx + 280, wy + 400, 120, 50);
+        shopBuySelectButton = new Rectangle(wx + 75, wy + 80, 250, 50);
+        shopBackButton = new Rectangle(wx + 75, wy + 20, 250, 50);
 
         authorsBackButton = new Rectangle(wx + 75, wy + 40, 250, 50);
 
@@ -407,6 +531,7 @@ public class Main extends ApplicationAdapter {
         gameOverExitButton = new Rectangle(wx + 75, wy + 40, 250, 50);
 
         pauseButton = new Rectangle((viewport.getWorldWidth() - 60) / 2, viewport.getWorldHeight() - 70, 60, 60);
+        holdButton = new Rectangle(30, 30, 90, 90);
         pauseContinueButton = new Rectangle(wx + 75, wy + 160, 250, 50);
         pauseExitButton = new Rectangle(wx + 75, wy + 90, 250, 50);
 
@@ -424,8 +549,8 @@ public class Main extends ApplicationAdapter {
             }
             float moveDistance = gameSpeed * delta;
             if (isInvincible) { invincibilityTimer -= delta; if (invincibilityTimer <= 0) isInvincible = false; }
-            player.update(delta, platforms);
-            challengeManager.updateDistance(score);
+            player.update(delta, platforms, holdButtonPressed);
+            challengeManager.updateDistance((int)score);
 
             if (challengeManager.getActiveChallengeThisRun() != null && challengeManager.getActiveChallengeThisRun().isCompleted()) {
                 completedChallenge = challengeManager.getActiveChallengeThisRun();
@@ -504,7 +629,7 @@ public class Main extends ApplicationAdapter {
             for (Platform p : platforms) p.update(delta);
             for (int i = coins.size() - 1; i >= 0; i--) {
                 Coin coin = coins.get(i); if (!holdTime) coin.move(moveDistance); coin.updateTime(delta);
-                if (isColliding(player, coin)) { coinSound.play(volume); coins.remove(i); point++; challengeManager.onCoinCollected(); }
+                if (isColliding(player, coin)) { coinSound.play(volume); coins.remove(i); point++; }
                 else if (coin.getX() + coin.getWidth() < 0) coins.remove(i);
                 if (timePowerActive) {
                     coins.clear();
@@ -576,7 +701,8 @@ public class Main extends ApplicationAdapter {
         if (Gdx.input.justTouched()) {
             Vector2 touch = viewport.unproject(new Vector2(Gdx.input.getX(), Gdx.input.getY()));
             if (state == GameState.MENU) {
-                gameMusic.stop(); bgMusic.play();
+                if (gameMusic.isPlaying()) gameMusic.stop();
+                if (!bgMusic.isPlaying()) bgMusic.play();
                 if (menuPlayButton.contains(touch.x, touch.y)) { initGame(); state = GameState.RUNNING; }
                 else if (menuRecordsButton.contains(touch.x, touch.y)) state = GameState.RECORDS;
                 else if (menuShopButton.contains(touch.x, touch.y)) state = GameState.SHOP;
@@ -604,7 +730,7 @@ public class Main extends ApplicationAdapter {
                 else if (challengesStartButton.contains(touch.x, touch.y)) {
                     Challenge selected = challengeManager.getChallenges().get(selectedChallengeIndex);
                     if (!selected.isCompleted()) {
-                        challengeManager.startChallenge(selected);
+                        challengeManager.scheduleChallenge(selected);
                         initGame();
                         state = GameState.RUNNING;
                     }
@@ -615,15 +741,46 @@ public class Main extends ApplicationAdapter {
             }
             else if (state == GameState.SHOP) {
                 if (shopBackButton.contains(touch.x, touch.y)) state = GameState.MENU;
-                else if (shopNextBgButton.contains(touch.x, touch.y)) selectedBgInShop = (selectedBgInShop + 1) % bgTextures.length;
+                else if (shopTabBgButton.contains(touch.x, touch.y)) shopTab = 0;
+                else if (shopTabMusicButton.contains(touch.x, touch.y)) shopTab = 1;
+                else if (shopNextBgButton.contains(touch.x, touch.y)) {
+                    if (shopTab == 0) {
+                        selectedBgInShop = (selectedBgInShop + 1) % bgTextures.length;
+                    } else {
+                        selectedMusicInShop = (selectedMusicInShop + 1) % unlockedMusics.length;
+                    }
+                }
                 else if (shopBuySelectButton.contains(touch.x, touch.y)) {
-                    if (unlockedBgs[selectedBgInShop]) { activeBgIndex = selectedBgInShop; prefs.putInteger("activeBgIndex", activeBgIndex); prefs.flush(); }
-                    else if (totalCoins >= bgPrices[selectedBgInShop]) { totalCoins -= bgPrices[selectedBgInShop]; unlockedBgs[selectedBgInShop] = true; activeBgIndex = selectedBgInShop; prefs.putInteger("totalCoins", totalCoins); prefs.putBoolean("bgUnlocked" + selectedBgInShop, true); prefs.putInteger("activeBgIndex", activeBgIndex); prefs.flush(); }
+                    if (shopTab == 0) {
+                        if (unlockedBgs[selectedBgInShop]) { activeBgIndex = selectedBgInShop; prefs.putInteger("activeBgIndex", activeBgIndex); prefs.flush(); }
+                        else if (totalCoins >= bgPrices[selectedBgInShop]) { totalCoins -= bgPrices[selectedBgInShop]; unlockedBgs[selectedBgInShop] = true; activeBgIndex = selectedBgInShop; prefs.putInteger("totalCoins", totalCoins); prefs.putBoolean("bgUnlocked" + selectedBgInShop, true); prefs.putInteger("activeBgIndex", activeBgIndex); prefs.flush(); }
+                    } else {
+                        if (unlockedMusics[selectedMusicInShop]) {
+                            if (activeMusicIndex != selectedMusicInShop) {
+                                gameMusic.stop();
+                                activeMusicIndex = selectedMusicInShop;
+                                gameMusic = gameMusics[activeMusicIndex];
+                                prefs.putInteger("activeMusicIndex", activeMusicIndex);
+                                prefs.flush();
+                            }
+                        }
+                        else if (totalCoins >= musicPrices[selectedMusicInShop]) {
+                            totalCoins -= musicPrices[selectedMusicInShop];
+                            unlockedMusics[selectedMusicInShop] = true;
+                            gameMusic.stop();
+                            activeMusicIndex = selectedMusicInShop;
+                            gameMusic = gameMusics[activeMusicIndex];
+                            prefs.putInteger("totalCoins", totalCoins);
+                            prefs.putBoolean("musicUnlocked" + selectedMusicInShop, true);
+                            prefs.putInteger("activeMusicIndex", activeMusicIndex);
+                            prefs.flush();
+                        }
+                    }
                 }
             }
             else if (state == GameState.SETTINGS) {
                 if (settingsLangButton.contains(touch.x, touch.y)) { isRussian = !isRussian; prefs.putBoolean("isRussian", isRussian); prefs.flush(); loadFont(); }
-                else if (settingsVolumeButton.contains(touch.x, touch.y)) { volume -= 0.25f; if (volume < 0f) volume = 1.0f; prefs.putFloat("volume", volume); prefs.flush(); bgMusic.setVolume(volume); gameMusic.setVolume(volume); }
+                else if (settingsVolumeButton.contains(touch.x, touch.y)) { volume -= 0.25f; if (volume < 0f) volume = 1.0f; prefs.putFloat("volume", volume); prefs.flush(); bgMusic.setVolume(volume); for (Music m : gameMusics) m.setVolume(volume); }
                 else if (settingsBackButton.contains(touch.x, touch.y)) state = GameState.MENU;
             }
             else if (state == GameState.GAME_OVER) {
@@ -663,9 +820,19 @@ public class Main extends ApplicationAdapter {
             if (challengeManager.isChallengeActive()) {
                 Challenge active = challengeManager.getActiveChallengeThisRun();
                 font.setColor(Color.YELLOW);
-                font.draw(batch, active.getName(), 30, viewport.getWorldHeight() - 110);
+                font.draw(batch, active.getName(isRussian), 30, viewport.getWorldHeight() - 110);
                 smallFont.setColor(Color.LIGHT_GRAY);
-                smallFont.draw(batch, (int)active.getCurrentProgress() + " / " + (int)active.getTargetValue() + " м", 30, viewport.getWorldHeight() - 135);
+                if (active.isCompleted()) {
+                    smallFont.setColor(Color.GREEN);
+                    smallFont.draw(batch, isRussian ? "ВЫПОЛНЕНО!" : "COMPLETED!", 30, viewport.getWorldHeight() - 135);
+                } else {
+                    smallFont.setColor(Color.LIGHT_GRAY);
+                    smallFont.draw(batch,
+                        (int)active.getCurrentProgress() + " / " + (int)active.getTargetValue(),
+                        30,
+                        viewport.getWorldHeight() - 135
+                    );
+                }
                 font.setColor(Color.WHITE);
             }
 
@@ -674,6 +841,27 @@ public class Main extends ApplicationAdapter {
                 font.draw(batch, (isRussian ? "Очки: " : "Points: ") + point, 30, viewport.getWorldHeight() - 30);
                 font.draw(batch, (isRussian ? "Счет: " : "Score: ") + (int) score, 30, viewport.getWorldHeight() - 70);
                 font.draw(batch, "||", pauseButton.x + 20, pauseButton.y + 40);
+
+                if (challengeManager.isChallengeActive()) {
+                    Challenge active = challengeManager.getActiveChallengeThisRun();
+
+                    String progressText = (int)active.getCurrentProgress() + " / " + (int)active.getTargetValue();
+
+                    glyphLayout.setText(font, progressText);
+
+                    float x = (viewport.getWorldWidth() - glyphLayout.width) / 2;
+                    float y = 40;
+
+                    font.setColor(Color.YELLOW);
+                    font.draw(batch, progressText, x, y);
+                    font.setColor(Color.WHITE);
+                }
+
+                batch.setColor(0.4f, 0.4f, 0.4f, 0.7f);
+                batch.draw(buttonTexture, holdButton.x, holdButton.y, holdButton.width, holdButton.height);
+                batch.setColor(Color.WHITE);
+                font.draw(
+                    batch, "R", holdButton.x + 32, holdButton.y + 58);
             } else if (state == GameState.PAUSED) {
                 batch.draw(darkOverlay, 0, 0, viewport.getWorldWidth(), viewport.getWorldHeight());
                 batch.draw(islandWindowTexture, wx, wy, 400, 350);
@@ -737,8 +925,8 @@ public class Main extends ApplicationAdapter {
             font.setColor(Color.GOLD); drawCenteredText(isRussian ? "ЧЕЛЛЕНДЖИ" : "CHALLENGES", wx, wy + 280, 400, 50); font.setColor(Color.WHITE);
 
             Challenge ch = challengeManager.getChallenges().get(selectedChallengeIndex);
-            drawCenteredText(ch.getName(), wx, wy + 220, 400, 40);
-            drawCenteredSmallText(ch.getDescription(), wx, wy + 175, 400, 40);
+            drawCenteredText(ch.getName(isRussian), wx, wy + 220, 400, 40);
+            drawCenteredSmallText(ch.getDescription(isRussian), wx, wy + 175, 400, 40);
 
             if (ch.isCompleted()) {
                 font.setColor(Color.GREEN);
@@ -751,10 +939,8 @@ public class Main extends ApplicationAdapter {
                 drawCenteredSmallText(isRussian ? "Не выполнено" : "Not completed", wx, wy + 120, 400, 30);
             }
 
-            batch.draw(buttonTexture, challengesLeftButton.x, challengesLeftButton.y, challengesLeftButton.width, challengesLeftButton.height);
-            batch.draw(buttonTexture, challengesRightButton.x, challengesRightButton.y, challengesRightButton.width, challengesRightButton.height);
-            drawCenteredText("<", challengesLeftButton.x, challengesLeftButton.y, challengesLeftButton.width, challengesLeftButton.height);
-            drawCenteredText(">", challengesRightButton.x, challengesRightButton.y, challengesRightButton.width, challengesRightButton.height);
+            batch.draw(arrowLeftTexture, challengesLeftButton.x, challengesLeftButton.y, challengesLeftButton.width, challengesLeftButton.height);
+            batch.draw(arrowRightTexture, challengesRightButton.x, challengesRightButton.y, challengesRightButton.width, challengesRightButton.height);
 
             if (!ch.isCompleted()) {
                 batch.draw(buttonTexture, challengesStartButton.x, challengesStartButton.y, 250, 50);
@@ -768,7 +954,7 @@ public class Main extends ApplicationAdapter {
             batch.draw(backgroundMenu, 0, 0, bgWidth, viewport.getWorldHeight());
             batch.draw(islandWindowTexture, wx, wy, 400, 350);
             font.setColor(Color.GOLD); drawCenteredText(isRussian ? "ЧЕЛЛЕНЖ ВЫПОЛНЕН!" : "CHALLENGE COMPLETE!", wx, wy + 260, 400, 50); font.setColor(Color.WHITE);
-            drawCenteredText(completedChallenge.getName(), wx, wy + 190, 400, 40);
+            drawCenteredText(completedChallenge.getName(isRussian), wx, wy + 190, 400, 40);
             font.setColor(Color.YELLOW);
             drawCenteredText("+" + completedChallenge.getReward(), wx, wy + 130, 400, 50);
             smallFont.setColor(Color.LIGHT_GRAY);
@@ -785,12 +971,35 @@ public class Main extends ApplicationAdapter {
             font.draw(batch, coinText, 30, viewport.getWorldHeight() - 30);
             glyphLayout.setText(font, coinText);
             batch.draw(coinAnimation.getKeyFrame(menuStateTime, true), 40 + glyphLayout.width, viewport.getWorldHeight() - 58, 30, 30);
-            batch.draw(bgTextures[selectedBgInShop], wx + 100, wy + 210, 200, 100);
-            batch.draw(buttonTexture, shopNextBgButton.x, shopNextBgButton.y, 250, 50);
-            drawCenteredText(isRussian ? "СЛЕДУЮЩИЙ" : "NEXT", shopNextBgButton.x, shopNextBgButton.y, 250, 50);
-            batch.draw(buttonTexture, shopBuySelectButton.x, shopBuySelectButton.y, 250, 50);
-            String bText = unlockedBgs[selectedBgInShop] ? (selectedBgInShop == activeBgIndex ? (isRussian?"ВЫБРАНО":"SELECTED") : (isRussian?"ВЫБРАТЬ":"SELECT")) : (isRussian?"КУПИТЬ: ":"BUY: ") + bgPrices[selectedBgInShop];
-            drawCenteredText(bText, shopBuySelectButton.x, shopBuySelectButton.y, 250, 50);
+
+            batch.draw(buttonTexture, shopTabBgButton.x, shopTabBgButton.y, 120, 50);
+            batch.draw(buttonTexture, shopTabMusicButton.x, shopTabMusicButton.y, 120, 50);
+            if (shopTab == 0) font.setColor(Color.GOLD);
+            drawCenteredText(isRussian ? "ФОНЫ" : "SKINS", shopTabBgButton.x, shopTabBgButton.y, 120, 50);
+            if (shopTab == 0) font.setColor(Color.WHITE); else font.setColor(Color.GOLD);
+            drawCenteredText(isRussian ? "МУЗЫКА" : "MUSIC", shopTabMusicButton.x, shopTabMusicButton.y, 120, 50);
+            font.setColor(Color.WHITE);
+
+            if (shopTab == 0) {
+                batch.draw(bgTextures[selectedBgInShop], wx + 100, wy + 210, 200, 100);
+                batch.draw(buttonTexture, shopNextBgButton.x, shopNextBgButton.y, 250, 50);
+                drawCenteredText(isRussian ? "СЛЕДУЮЩИЙ" : "NEXT", shopNextBgButton.x, shopNextBgButton.y, 250, 50);
+                batch.draw(buttonTexture, shopBuySelectButton.x, shopBuySelectButton.y, 250, 50);
+                String bText = unlockedBgs[selectedBgInShop] ? (selectedBgInShop == activeBgIndex ? (isRussian?"ВЫБРАНО":"SELECTED") : (isRussian?"ВЫБРАТЬ":"SELECT")) : (isRussian?"КУПИТЬ: ":"BUY: ") + bgPrices[selectedBgInShop];
+                drawCenteredText(bText, shopBuySelectButton.x, shopBuySelectButton.y, 250, 50);
+            } else {
+                drawCenteredText(isRussian ? "Музыка " + (selectedMusicInShop + 1) : "Music " + (selectedMusicInShop + 1), wx, wy + 210, 400, 50);
+                batch.draw(buttonTexture, shopNextBgButton.x, shopNextBgButton.y, 250, 50);
+                drawCenteredText(isRussian ? "СЛЕДУЮЩИЙ" : "NEXT", shopNextBgButton.x, shopNextBgButton.y, 250, 50);
+                batch.draw(buttonTexture, shopBuySelectButton.x, shopBuySelectButton.y, 250, 50);
+                String mText = unlockedMusics[selectedMusicInShop]
+                    ? (selectedMusicInShop == activeMusicIndex
+                    ? (isRussian ? "ВЫБРАНО" : "SELECTED")
+                    : (isRussian ? "ВЫБРАТЬ" : "SELECT"))
+                    : (isRussian ? "КУПИТЬ: " : "BUY: ") + musicPrices[selectedMusicInShop];
+                drawCenteredText(mText, shopBuySelectButton.x, shopBuySelectButton.y, 250, 50);
+            }
+
             batch.draw(buttonTexture, shopBackButton.x, shopBackButton.y, 250, 50);
             drawCenteredText(isRussian ? "НАЗАД" : "BACK", shopBackButton.x, shopBackButton.y, 250, 50);
         }
@@ -855,7 +1064,8 @@ public class Main extends ApplicationAdapter {
     @Override public void resize(int width, int height) { viewport.update(width, height, true); }
     @Override public void dispose() {
         batch.dispose(); for (Texture t : bgTextures) t.dispose(); backgroundMenu.dispose(); meteoriteTexture.dispose();
-        darkOverlay.dispose(); islandWindowTexture.dispose(); buttonTexture.dispose(); Animations.dispose();
-        Platform.dispose(); Monster.dispose(); player.dispose(); font.dispose(); smallFont.dispose(); coinSound.dispose(); Coin.dispose();  shieldSound.dispose();
+        darkOverlay.dispose(); islandWindowTexture.dispose(); buttonTexture.dispose(); arrowLeftTexture.dispose(); arrowRightTexture.dispose(); Animations.dispose();
+        Platform.dispose(); Monster.dispose(); player.dispose(); font.dispose(); smallFont.dispose(); coinSound.dispose(); Coin.dispose(); shieldSound.dispose();
+        for (Music m : gameMusics) if (m != null) m.dispose();
     }
 }

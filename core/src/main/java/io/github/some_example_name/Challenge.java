@@ -1,20 +1,21 @@
 package io.github.some_example_name;
 
 public class Challenge {
-    public enum ChallengeType { NO_COINS, NO_DOUBLE_JUMP, SPEED_RUN }
 
-    private String name;
-    private String description;
-    private ChallengeType type;
+    private String nameRu;
+    private String nameEn;
+    private String descriptionRu;
+    private String descriptionEn;
     private float targetValue;
     private float currentProgress;
     private boolean completed;
     private int reward;
 
-    public Challenge(String name, String description, ChallengeType type, float targetValue, int reward) {
-        this.name = name;
-        this.description = description;
-        this.type = type;
+    public Challenge(String nameRu, String nameEn, String descriptionRu, String descriptionEn, float targetValue, int reward) {
+        this.nameRu = nameRu;
+        this.nameEn = nameEn;
+        this.descriptionRu = descriptionRu;
+        this.descriptionEn = descriptionEn;
         this.targetValue = targetValue;
         this.reward = reward;
         this.currentProgress = 0;
@@ -22,29 +23,32 @@ public class Challenge {
     }
 
     public void updateProgress(float value) {
+        if (completed) return;
         this.currentProgress = value;
         if (currentProgress >= targetValue) {
             completed = true;
-
-
-        }
-        if (currentProgress >= targetValue) {
-            completed = true;
-            System.out.println("COMPLETED!");
+            currentProgress = targetValue;
         }
     }
+    public void resetRun() {
+        currentProgress = 0;
+    }
+
 
     public void reset() {
         currentProgress = 0;
         completed = false;
     }
 
-    public String getName() { return name; }
-    public String getDescription() { return description; }
-    public ChallengeType getType() { return type; }
+    public void markCompleted() {
+        this.completed = true;
+        this.currentProgress = targetValue;
+    }
+
+    public boolean isCompleted() { return completed; }
     public float getTargetValue() { return targetValue; }
     public float getCurrentProgress() { return currentProgress; }
-    public boolean isCompleted() { return completed; }
+    public String getName(boolean isRussian) { return isRussian ? nameRu : nameEn; }
+    public String getDescription(boolean isRussian) { return isRussian ? descriptionRu : descriptionEn; }
     public int getReward() { return reward; }
-    public float getProgressPercentage() { return Math.min(currentProgress / targetValue, 1f); }
 }
