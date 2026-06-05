@@ -11,7 +11,7 @@ public class Clock {
     private static Texture texture;
 
     public static void load() {
-        texture = new Texture("time.png"); // твой PNG
+        texture = new Texture("time.png");
     }
 
     public Clock(float x, float y) {
